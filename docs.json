@@ -1,0 +1,91 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Agent007",
+  "colors": {
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5"
+  },
+  "favicon": "/logo.png",
+  "topbarLinks": [
+    { "name": "GitHub", "url": "https://github.com/SebastianDevps/agent007" }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "commands/dev",
+              "commands/orchestrate",
+              "commands/ralph-loop",
+              "commands/consult",
+              "commands/commit",
+              "commands/pull-request",
+              "commands/deep-research",
+              "commands/security-scan",
+              "commands/instinct-status",
+              "commands/evolve",
+              "commands/prompt-gen"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Agents",
+        "groups": [
+          {
+            "group": "Agents",
+            "pages": [
+              "agents/overview",
+              "agents/backend-db-expert",
+              "agents/frontend-ux-expert",
+              "agents/code-reviewer",
+              "agents/security-expert",
+              "agents/platform-expert",
+              "agents/product-expert",
+              "agents/loop-operator",
+              "agents/refactor-cleaner"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Orchestrator",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": ["orchestrator/architecture"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": ["changelog"]
+          }
+        ]
+      }
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/SebastianDevps/agent007"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
+  }
+}

@@ -1,0 +1,107 @@
+---
+title: "/evolve"
+description: "Review instinct clusters and promote high-confidence patterns into reusable permanent skills."
+---
+
+## Overview
+
+`/evolve` takes instinct clusters (groups of related behavioral patterns) and promotes them to permanent skill files in `.claude/skills/`. It prevents skill sprawl by requiring user review before any promotion.
+
+```
+/evolve
+/evolve --domain <domain>
+/evolve --auto
+/evolve --list
+```
+
+---
+
+## When to Use
+
+After running `/instinct-status` and seeing skill candidates in the `🌱 Skill Candidates` section. `/evolve` reviews each candidate and asks whether to promote it.
+
+---
+
+## Process
+
+### Step 1 — Run cluster analysis
+
+```bash
+node .claude/scripts/instinct-engine.js cluster
+```
+
+Output: list of domains with instinct count, eligible count, and promotion status.
+
+### Step 2 — Review each candidate
+
+For each skill candidate in `.claude/instincts/evolved/`:
+
+```
+## Skill Candidate: [domain]
+
+Trigger: [when this applies]
+Action:  [what to do]
+Confidence: [X%] · Evidence: [N observations]
+Based on instincts: [list of source instinct IDs]
+
+Promote to skill? [Y]es / [N]o / [E]dit first
+```
+
+### Step 3 — On approval
+
+Creates a new skill file at `.claude/skills/domain/<id>/SKILL.md`:
+
+```markdown
+---
+name: [derived from instinct id]
+description: "[action summary]"
+domain: [domain tag]
+confidence: [inherited]
+origin: evolved-instinct
+promoted: [ISO timestamp]
+---
+
+## Trigger
+[when this applies]
+
+## Action
+[what to do]
+
+## Evidence
+Evolved from [N] observations over [M] sessions.
+Source instincts: [list]
+```
+
+### Step 4 — On rejection
+
+- Marks the evolved instinct with `rejected: true`
+- Applies decay: `node .claude/scripts/instinct-engine.js decay [id]`
+
+---
+
+## Confidence Gate
+
+**NEVER auto-promotes** instincts with confidence < 0.7 without explicit user confirmation.
+
+At confidence ≥ 0.9 (core): offers auto-promotion with a single `[Enter]` confirm.
+
+---
+
+## Cluster Rules
+
+| Condition | Result |
+|-----------|--------|
+| ≥ 3 instincts in same domain with confidence ≥ 0.5 | Cluster formed |
+| Cluster present + user runs `/evolve` | Skill candidate shown |
+| User confirms | `SKILL.md` created in `.claude/skills/domain/` |
+| User rejects | Instinct decayed, candidate archived |
+
+---
+
+## Flags
+
+| Flag | Effect |
+|------|--------|
+| `--domain <domain>` | Focus review on a specific domain only |
+| `--auto` | Auto-promote all candidates with confidence ≥ 0.8 |
+| `--list` | List candidates without promoting |

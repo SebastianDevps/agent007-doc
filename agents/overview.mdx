@@ -1,0 +1,73 @@
+---
+title: "Agents Overview"
+description: "8 expert agents with principle of least privilege — each specialized for a domain, each with only the tools it needs."
+---
+
+## Overview
+
+Agent007 has 8 expert agents. Each agent has:
+
+- A specific **model** (opus for deep reasoning, sonnet for speed)
+- **Tool restrictions** enforcing principle of least privilege
+- **Domain expertise** with a detailed methodology
+- An **output protocol** (PLANNER / CONSULTANT / REVIEWER modes)
+
+Agents are never called directly by users — they are dispatched by the orchestrator or invoked by `/consult`. The routing is automatic based on keyword matching and task type.
+
+---
+
+## Agent Roster
+
+| Agent | Model | Specialty | Tools |
+|-------|-------|-----------|-------|
+| [`backend-db-expert`](/agents/backend-db-expert) | opus | NestJS, TypeORM, PostgreSQL, Redis, APIs, architecture | Read, Grep, Glob |
+| [`code-reviewer`](/agents/code-reviewer) | sonnet | Code quality, CRITICAL/HIGH/MEDIUM/LOW taxonomy, 80% confidence filter | Read, Grep, Glob, Bash |
+| [`frontend-ux-expert`](/agents/frontend-ux-expert) | sonnet | React, Next.js, Tailwind, WCAG, performance, design systems | Read, Grep, Glob |
+| [`loop-operator`](/agents/loop-operator) | sonnet | Ralph loop lifecycle, stall detection, cost drift, human escalation | Read, Grep, Glob, Bash, Edit |
+| [`platform-expert`](/agents/platform-expert) | sonnet | Docker, GitHub Actions, Kubernetes, Jest/Playwright, CI/CD, monitoring | Read, Grep, Glob, Bash |
+| [`product-expert`](/agents/product-expert) | opus | RICE, user stories, MVP, roadmap, AARRR, discovery | Read, Grep, Glob |
+| [`refactor-cleaner`](/agents/refactor-cleaner) | sonnet | Dead code removal (knip/depcheck/ts-prune), risk-tiered batch deletion | Read, Write, Edit, Bash, Grep, Glob |
+| [`security-expert`](/agents/security-expert) | opus | OWASP Top 10, JWT, OAuth, GDPR, SOC2, threat modeling | Read, Write, Edit, Bash, Grep, Glob |
+
+---
+
+## Principle of Least Privilege
+
+Each agent has only the tools required for its job:
+
+| Access Level | Agents | Rationale |
+|---|---|---|
+| Read-only (Read, Grep, Glob) | backend-db-expert, frontend-ux-expert, product-expert | Analysis and consulting only |
+| Read + Bash | platform-expert, loop-operator | Need to run commands (tests, scripts) |
+| Full write access | security-expert, refactor-cleaner | Must modify files to remediate issues |
+| Read + Bash (no Write) | code-reviewer | Reviews without modifying — clean separation |
+
+---
+
+## Output Modes
+
+Every agent has 3 output modes:
+
+| Mode | When | Format |
+|------|------|--------|
+| **PLANNER** | Task breakdown needed | Phased implementation plan with file paths, durations, verify commands |
+| **CONSULTANT** | Expert advice needed | Recommendation → trade-offs → concrete next steps |
+| **REVIEWER** | Quality gate | PASS/FAIL per category with file:line evidence → verdict |
+
+---
+
+## Auto-Routing Keywords
+
+Agents are auto-selected based on keyword matching. The agent with the most matches wins. On tie, or with `--experts X,Y`, both respond.
+
+```
+/consult "question"    → auto-selects based on keywords
+/dev "task"           → dispatches via subagent-driven-development
+/orchestrate workflow → assigns agents per workflow step
+```
+
+---
+
+## Adding a New Agent
+
+New agents are defined as YAML-frontmatter + XML markdown in `.claude/agents/<name>.md`. Required sections: `<identity>`, `<expertise>`, `<constraints>`, `<methodology>`, `<output_protocol>`. Register in `agents/INDEX.md` and add to CLAUDE.md routing table.

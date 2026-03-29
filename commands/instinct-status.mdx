@@ -1,0 +1,90 @@
+---
+title: "/instinct-status"
+description: "Display all compiled instincts with confidence levels, domain breakdown, and skill candidates."
+---
+
+## Overview
+
+`/instinct-status` shows the current state of the Instinct Learning System — behavioral patterns observed during sessions that have been promoted to persistent instincts.
+
+```
+/instinct-status
+/instinct-status --domain <code-style|testing|git|debugging|architecture>
+/instinct-status --min <0.0-1.0>
+/instinct-status --json
+```
+
+---
+
+## What Are Instincts?
+
+Instincts are behavioral patterns Claude observes during development sessions. When a pattern repeats enough times with high confidence, it becomes an instinct — a persistent guideline that influences future behavior without needing to be re-explained.
+
+Instincts are stored in `.claude/instincts/`.
+
+---
+
+## Output Format
+
+```
+## Instinct System — Agent007
+Status: [N] personal · [N] inherited · [N] evolved
+
+### ⚡ Auto-Apply (confidence ≥ 0.7)
+[list with confidence bar, trigger, domain]
+
+### 🟡 Moderate (0.5 – 0.69)
+[list]
+
+### 🔵 Tentative (< 0.5)
+[list]
+
+### 🌱 Skill Candidates (evolved/)
+[list of cluster-promoted instincts]
+```
+
+---
+
+## Confidence Scale
+
+| Level | Range | Behavior |
+|-------|-------|----------|
+| Tentative | < 0.3 | Single observation, not applied automatically |
+| Moderate | 0.5 | 2–3 observations, shown as suggestion |
+| Auto-Apply | 0.7 | 4+ observations, applied without confirmation |
+| Core | 0.9 | Deeply established, session-invariant |
+
+**Decay rate**: -0.05 per session without reinforcement
+
+**Cluster threshold**: 3 related instincts in the same domain → skill candidate
+
+---
+
+## Available Actions
+
+After displaying status, offers:
+
+```
+What would you like to do?
+[C]ompile recent observations into instincts
+[D]ecay — reduce confidence of unreinforced instincts
+[K]luster — promote candidates to skills
+[E]xport — export compiled instincts (without observations)
+[R]eset — delete tentative instincts (confidence < 0.3)
+```
+
+---
+
+## Underlying Script
+
+```bash
+node .claude/scripts/instinct-engine.js status
+```
+
+Subcommands: `status`, `compile`, `decay`, `cluster`, `export`
+
+---
+
+## Relationship with /evolve
+
+Once instincts cluster into skill candidates (3+ related instincts with confidence ≥ 0.5), use `/evolve` to review and promote them to permanent `.claude/skills/` files.

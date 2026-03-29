@@ -1,0 +1,159 @@
+---
+title: "/orchestrate"
+description: "Multi-agent workflow orchestration with structured HANDOFF documents between agents."
+---
+
+## Overview
+
+`/orchestrate` executes named multi-agent workflows where each agent produces a structured HANDOFF document before the next agent starts. Every decision is traceable. No agent starts without reading the previous agent's HANDOFF.
+
+```
+/orchestrate <workflow-type> "<task description>"
+```
+
+---
+
+## Workflow Types
+
+### `feature` — New Feature Development
+
+```
+brainstorm → plan → [wave execute: SDD] → code-reviewer → security-expert → branch-finish
+```
+
+Use for: implementing new capabilities with a full quality gate chain.
+
+### `bugfix` — Bug Investigation and Fix
+
+```
+systematic-debugging → plan → generate → code-reviewer → verify
+```
+
+Use for: fixing reported bugs with root cause analysis first.
+
+### `refactor` — Safe Refactoring
+
+```
+sop-reverse → plan → [wave execute: SDD] → code-reviewer → verify
+```
+
+Use for: restructuring code without behavior change.
+
+### `security` — Security Review and Remediation
+
+```
+security-expert → code-reviewer → [fix: SDD] → security-expert (re-verify)
+```
+
+Use for: security audits, vulnerability remediation, compliance checks.
+
+### `cleanup` — Dead Code and Dependency Cleanup
+
+```
+refactor-cleaner → verify
+```
+
+Use for: removing unused code and cleaning dependencies.
+
+---
+
+## HANDOFF Document Protocol
+
+Every agent **must produce** a HANDOFF before the next agent starts. HANDOFFs are saved to:
+
+```
+.sdlc/handoffs/<workflow-id>/<agent-name>-handoff.md
+```
+
+where `workflow-id` = `<type>-<YYYYMMDD>-<short-desc>` (e.g., `feature-20260329-user-auth`)
+
+### HANDOFF Format
+
+```markdown
+## Handoff: [agent-name] → [next-agent-name]
+**Workflow**: [workflow-type]
+**Task**: [task description]
+**Date**: YYYY-MM-DD
+**Status**: COMPLETE | PARTIAL | BLOCKED
+
+### Context
+[What was done and why — 2–5 sentences]
+
+### Findings
+- [Key finding 1]
+- [Unexpected discovery affecting next agent's work]
+
+### Files Modified
+- `path/to/file.ts` — [what changed and why]
+
+### Open Questions
+- [Question the next agent should resolve]
+
+### Recommendations for [next-agent-name]
+- [Specific guidance based on findings]
+- [Files to focus on first]
+- [Known risks to verify]
+```
+
+---
+
+## Final Orchestration Report
+
+After all agents complete, a report is produced:
+
+```markdown
+## Orchestration Report
+**Workflow**: [type]
+**Task**: [description]
+**Date**: YYYY-MM-DD
+**Duration**: Xm
+**Agents**: agent1 → agent2 → agent3
+
+### Verdict
+SHIP / NEEDS WORK / BLOCKED
+
+### Handoff Chain
+| Agent | Status | Key Finding |
+|-------|--------|-------------|
+| brainstorm | ✅ COMPLETE | 3 design options, chose X because Y |
+| plan | ✅ COMPLETE | 8 tasks across 3 waves |
+| code-reviewer | ⚠️ NEEDS WORK | 1 HIGH at auth.service.ts:47 |
+```
+
+---
+
+## Human Gates
+
+Approval checkpoints are inserted **before**:
+
+- Any merge to main/develop
+- Any `security-expert` remediation modifying auth/encryption
+- Any SDD execution when risk is HIGH or CRITICAL
+
+---
+
+## Guardrails
+
+- Never skip the HANDOFF step — it is the coordination mechanism
+- Never start agent N+1 before agent N produces its HANDOFF
+- Never produce a SHIP verdict if any agent has BLOCKED status
+- HANDOFF documents are the audit trail — preserve until SHIP
+- Open Questions in HANDOFF must be resolved before chain continues
+
+---
+
+## Examples
+
+```bash
+# New feature with full quality chain
+/orchestrate feature "Build the notifications module with email + push"
+
+# Fix a reported bug with root cause analysis
+/orchestrate bugfix "Users are getting 500 errors on POST /payments when amount is 0"
+
+# Security audit of the auth module
+/orchestrate security "Audit src/auth/ for OWASP Top 10 vulnerabilities"
+
+# Clean up dead code before a major release
+/orchestrate cleanup "Remove all unused exports and dependencies"
+```

@@ -1,0 +1,204 @@
+---
+title: "Quickstart"
+description: "Get Agent007 v5.1.1 running in your Claude Code project in under 5 minutes"
+---
+
+## Prerequisites
+
+- [Claude Code](https://claude.ai/code) installed (CLI, desktop app, or IDE extension)
+- A project directory with a `package.json` or any codebase
+
+---
+
+## Installation
+
+Agent007 ships as a `.claude/` directory that you drop into any project root.
+
+<Steps>
+  <Step title="Clone or copy the plugin">
+    Copy the `.claude/` directory from the Agent007 repository into your project root:
+
+    ```bash
+    # Option A: clone and copy
+    git clone https://github.com/sebasing/PluginClaude /tmp/agent007
+    cp -r /tmp/agent007/.claude ./
+
+    # Option B: if working from the repo directly
+    # The .claude/ directory is already in place
+    ```
+  </Step>
+
+  <Step title="Verify the structure">
+    Your project should now have:
+
+    ```
+    your-project/
+    ├── .claude/
+    │   ├── CLAUDE.md          ← orchestrator instructions (auto-loaded)
+    │   ├── agents/            ← 8 expert agents
+    │   ├── commands/          ← 12 slash commands
+    │   ├── skills/            ← 25 active skills
+    │   ├── hooks/             ← 17 automation hooks
+    │   ├── rules/             ← 7 coding rule files
+    │   └── settings.json      ← hook registration + permissions
+    └── your-project-files...
+    ```
+  </Step>
+
+  <Step title="Open Claude Code">
+    Start a new session in your project directory. Claude Code will automatically load `CLAUDE.md` and all context imports.
+
+    You'll see the routing classification on your first task message:
+    ```
+    🎯 feature → /dev | Risk: low
+    ```
+  </Step>
+
+  <Step title="Run your first command">
+    Try the master development command:
+
+    ```
+    /dev "Add a health check endpoint to the API"
+    ```
+
+    Agent007 will:
+    1. Classify the task (feature, medium complexity)
+    2. Show routing decision + risk level
+    3. Generate a plan with 2–5 min tasks
+    4. Dispatch the right expert subagent
+    5. Verify output before claiming done
+  </Step>
+</Steps>
+
+---
+
+## Your First 3 Commands
+
+### 1. Ask an expert
+
+```
+/consult "Should I use cursor-based or offset pagination for 10M records?"
+```
+
+Auto-routes to `backend-db-expert` (opus model). Returns a structured recommendation with trade-offs and a concrete implementation plan.
+
+### 2. Run a feature autonomously
+
+```
+/dev "Add email verification to the registration flow" --ralph --verify "npm test"
+```
+
+Full pipeline: plan → subagent execution → code-reviewer gate → loop until `npm test` passes.
+
+### 3. Orchestrate a multi-agent workflow
+
+```
+/orchestrate feature "Build the notifications module"
+```
+
+Runs the full chain: `brainstorm → plan → SDD → code-reviewer → security-expert → branch-finish`. Each agent passes a structured HANDOFF document to the next.
+
+---
+
+## Key Concepts
+
+<AccordionGroup>
+  <Accordion title="SDD Iron Law">
+    **No production code before a defined observable scenario.**
+
+    Scenarios live in `docs/scenarios/` (external, immutable). Tests live in the code (internal). Claude can modify tests. It cannot modify scenarios. This prevents reward-hacking where an AI "passes" tests by deleting them.
+  </Accordion>
+
+  <Accordion title="Evidence-gated verification">
+    Agent007 never claims "done" without running the verification command and showing the actual output:
+
+    ```
+    ✅ Verified: npm test → 47 passed, 0 failed (2.3s)
+    ```
+
+    Phrases like "should work", "probably", "I assume" are banned and replaced with evidence.
+  </Accordion>
+
+  <Accordion title="Ralph Loop">
+    The Ralph Loop is an autonomous iteration engine. It runs your task in a loop until the `<promise>COMPLETE</promise>` signal is detected.
+
+    ```
+    /ralph-loop "Fix all TypeScript errors" --max-iterations 10 --verify "npx tsc --noEmit"
+    ```
+
+    The `loop-operator` agent monitors for stalls (same error × 3), cost drift (> 2× baseline), and context budget (> 80%). It escalates with A/B/C recovery options instead of silently looping forever.
+  </Accordion>
+
+  <Accordion title="Human checkpoints">
+    5 checkpoints exist where you decide before anything advances:
+
+    1. **CP 0** — Classification shown before any action
+    2. **CP 1** — Plan reviewed and approved before implementation
+    3. **CP 2** — Code review per task (spec compliance + quality)
+    4. **CP 3** — Branch finish: merge / push+PR / keep / discard
+    5. **CP implicit** — Stop hook verifies completeness before session ends
+
+    High/critical risk tasks (auth, payments, migrations) require explicit "yes" before proceeding.
+  </Accordion>
+
+  <Accordion title="Principle of Least Privilege">
+    Each agent has only the tools it needs:
+
+    | Agents | Tools |
+    |--------|-------|
+    | backend-db, frontend-ux, product | Read, Grep, Glob (read-only) |
+    | platform, loop-operator | + Bash |
+    | security, refactor-cleaner | + Write, Edit |
+    | code-reviewer | Read, Grep, Glob, Bash (read-only) |
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Common Workflows
+
+### Bug fix (direct)
+```
+/dev "Fix null pointer error in UserService.findById()" --simple
+```
+
+### New feature (medium)
+```
+/dev "Add cursor-based pagination to /users endpoint"
+```
+
+### Complex feature (full pipeline)
+```
+/dev "Implement JWT auth with refresh token rotation" --full --ralph --max-iterations 40 --verify "npm run test:e2e"
+```
+
+### Security audit
+```
+/consult "Review the auth module at src/auth/" --experts security
+```
+
+### Dead code cleanup
+```
+/orchestrate cleanup "Remove all unused exports and dependencies"
+```
+
+### Convert expert advice to executable prompt
+```
+/consult "How should I structure bounded contexts for payments?"
+/prompt-gen "design payments module with bounded contexts" --target dev --save
+```
+
+---
+
+## Token Efficiency Tips
+
+| Mode | Tokens | When |
+|------|--------|------|
+| `/consult --quick` | ~2K | Direct answer, no trade-offs |
+| `/consult` | ~5K | Analysis with trade-offs |
+| `/consult --deep` | ~10K | Architecture decisions |
+| `/dev --simple` | ~3–8K | Bug, single-file change |
+| `/dev` medium | ~15–40K | Feature with 3–6 tasks |
+| `/dev --full` | ~40–80K | Complex feature with brainstorm |
+
+Use `/compact` between phases (after plan, before implementation) — never in the middle of a `subagent-driven-development` run.

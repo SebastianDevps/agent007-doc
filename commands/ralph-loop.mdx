@@ -1,0 +1,160 @@
+---
+title: "/ralph-loop"
+description: "Autonomous iteration loop — runs until the completion promise is detected or max iterations is reached."
+---
+
+## Overview
+
+`/ralph-loop` activates an autonomous execution loop that iterates until `<promise>COMPLETE</promise>` is emitted, or until `--max-iterations` is reached. The `loop-operator` agent monitors each iteration for stalls, cost drift, and context budget.
+
+```
+/ralph-loop "task description"
+/ralph-loop "task" --max-iterations 20 --verify "npm test"
+/ralph-loop "task" --completion-promise "COMPLETE"
+```
+
+---
+
+## Auto-Activation Signals
+
+The orchestrator auto-routes to ralph loop when messages contain:
+
+| Signal | Examples |
+|--------|---------|
+| Loop keywords | "loop until", "ralph", "--persist", "iterate until done" |
+| Autonomous intent | "run overnight", "autonomous", "until tests pass" |
+| Explicit request | "use ralph", "ralph loop", "loop mode" |
+
+---
+
+## Modes
+
+Ralph auto-selects the mode based on task complexity:
+
+| Condition | Mode | Pipeline |
+|-----------|------|----------|
+| ≥ 3 requirements OR multiple technologies | **ORCHESTRATED** | worktree → plan → subagents → verify |
+| < 3 requirements, single technology, single file scope | **DIRECT** | implement directly → verify |
+
+---
+
+## DIRECT Mode
+
+For simple tasks:
+
+1. Read relevant files (Glob + Grep before editing)
+2. Implement following all requirements
+3. Run `verificationCommand` after each significant change
+4. Show actual output — no claims without evidence
+5. Output `<promise>COMPLETE</promise>` when all success criteria confirmed
+
+---
+
+## ORCHESTRATED Mode
+
+For complex tasks (≥ 3 requirements), applies the full pipeline inside the loop:
+
+```
+1. Skill('using-git-worktrees')   → isolated branch feat/<task-slug>
+2. Skill('plan')                  → decompose to 2–5 min tasks with exact paths
+3. Skill('subagent-driven-development')
+   → expert subagent per task → implement → review → commit
+4. Final verification:            → run verificationCommand, confirm all successCriteria
+```
+
+---
+
+## Arguments Reference
+
+| Argument | Source | Default |
+|----------|--------|---------|
+| `task` | Quoted string at start | Required |
+| `requirements` | Lines after `Requirements:` / `Requisitos:` | [] |
+| `successCriteria` | Lines after `Success Criteria:` / `Criterios de éxito:` | [] |
+| `completionPromise` | `--completion-promise "TEXT"` | `"COMPLETE"` |
+| `maxIterations` | `--max-iterations N` | 20 (max: 50) |
+| `verificationCommand` | `--verify "command"` | null |
+
+---
+
+## Safety Check
+
+If the task mentions `auth`, `payment`, `migration`, `encryption`, `.env`, or `secret`, ralph pauses and asks for confirmation before proceeding:
+
+```
+⚠️ Ralph Loop + sensitive domain detected.
+This task touches [auth/payment/migration]. Ralph loops modify code autonomously.
+Are you sure you want to proceed? [yes/no]
+```
+
+---
+
+## Examples
+
+### ORCHESTRATED — Full format (≥ 3 requirements)
+
+```
+/ralph-loop "Implement project management tool"
+
+Requirements:
+- Complete Next.js + Tailwind app with localStorage
+- Functional Kanban board (columns: Todo / In Progress / Done)
+- Integrated task list with full CRUD
+- No linter errors
+
+Success Criteria:
+- All requirements implemented
+- No linter errors
+- Documentation updated
+
+--max-iterations 30 --completion-promise "COMPLETE"
+```
+
+→ Mode: **ORCHESTRATED** (4 requirements detected)
+→ Pipeline: worktree → plan → subagents → verify → COMPLETE
+
+### DIRECT — Compact (< 3 requirements)
+
+```
+/ralph-loop "Fix all failing tests" --max-iterations 10 --verify "npm test"
+```
+
+→ Mode: **DIRECT**
+
+---
+
+## Relationship with /dev
+
+```
+/ralph-loop "task"    ←→    /dev "task" --ralph
+
+Both activate ralph. The difference:
+- /ralph-loop: explicit entry point (direct command)
+- /dev --ralph: master orchestrator that activates ralph internally per task
+
+For complex tasks, both converge to the same pipeline:
+  worktree → plan → subagents (with ralph per task) → verify → COMPLETE
+```
+
+---
+
+## Loop State
+
+Ralph state is persisted to `.claude/ralph-state.json`:
+
+```json
+{
+  "active": true,
+  "loopId": "<uuid>",
+  "task": "<parsed task>",
+  "completionPromise": "COMPLETE",
+  "maxIterations": 20,
+  "currentIteration": 0,
+  "startTime": "<ISO timestamp>",
+  "requirements": ["..."],
+  "successCriteria": ["..."],
+  "verificationCommand": "<command or null>"
+}
+```
+
+On successful completion, `COMPLETE` is written to `.claude/ralph-complete.txt` as the signal file.

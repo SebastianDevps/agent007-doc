@@ -1,0 +1,77 @@
+---
+title: "/security-scan"
+description: "Local Agent007 ecosystem security audit — checks for configuration weaknesses and prompt injection patterns."
+---
+
+## Overview
+
+`/security-scan` performs a local-only scan of the Agent007 ecosystem. No data is sent externally. It checks 5 categories and produces a graded report with actionable findings.
+
+```
+/security-scan
+/security-scan --category <1-5>
+/security-scan --json
+```
+
+---
+
+## Scan Categories
+
+| # | Target | What it checks |
+|---|--------|---------------|
+| 1 | `CLAUDE.md` | Safety-bypass phrases: "ignore safety", "bypass guard", "override constraint" |
+| 2 | `settings.json` | `permissions.deny` covers `rm -rf /` and `sudo`; no over-permissive `Bash(*)` |
+| 3 | `hooks/` | No `eval()`, no unsafe `exec()` with user input, no external `curl` |
+| 4 | `skills/` | No prompt-injection patterns ("ignore previous instructions") |
+| 5 | `instincts/` | No instinct with confidence > 0.9 (flags unexpected auto-apply elevation) |
+
+---
+
+## Running the Scanner
+
+```bash
+node .claude/scripts/security-scan.js
+```
+
+---
+
+## Report Format
+
+```
+Score: [A-F]  |  [N] critical  [N] warnings  [N] clean categories
+
+✅ [1] CLAUDE.md — safety bypass phrases
+⚠️  [2] settings.json — permissions.deny coverage
+    WARNING  permissions.deny missing protection for: sudo
+🚨 [4] skills/ — prompt injection patterns
+    CRITICAL Potential prompt injection: "ignore previous instructions"
+             → .claude/skills/pipeline/some-skill.md
+```
+
+---
+
+## Scoring Reference
+
+| Grade | Issues | Action |
+|-------|--------|--------|
+| A | 0 issues | No action needed |
+| B | 1–2 warnings | Review and confirm intentional |
+| C | 3–4 warnings OR 1 critical | Fix before next session |
+| D | 5+ warnings OR 2 criticals | Fix immediately |
+| F | 3+ criticals | Stop and audit manually |
+
+Exit code: `0` for grade A/B, `1` for C–F.
+
+---
+
+## On CRITICAL Findings
+
+1. Open the flagged file
+2. Remove or replace the offending content
+3. Re-run `/security-scan` to confirm resolution
+
+---
+
+## Current Status (v5.1.1)
+
+`scripts/security-scan.js` achieves **Grade A** — 0 critical, 0 warnings across all 5 categories.

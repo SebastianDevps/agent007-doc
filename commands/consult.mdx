@@ -1,0 +1,95 @@
+---
+title: "/consult"
+description: "Expert consultation with automatic agent selection and skills injection."
+---
+
+## Overview
+
+`/consult` routes your question to the most relevant expert agent based on keyword matching, loads that agent's skills, and responds from its specialized perspective. Optionally ask two experts for independent opinions.
+
+```
+/consult "question"
+/consult "question" --deep
+/consult "question" --quick
+/consult "question" --experts backend,security
+```
+
+---
+
+## Expert Selection
+
+The agent with the most keyword matches answers. On a tie, or when `--experts X,Y` is used, both respond sequentially with clearly labeled sections.
+
+| Expert | Trigger keywords |
+|--------|-----------------|
+| `backend-db-expert` | api, endpoint, architecture, nestjs, database, query, sql, schema, typeorm, microservice, performance, cache, redis, migration, retry, resilience, circuit-breaker, rate-limit |
+| `security-expert` | security, auth, jwt, oauth, owasp, vulnerability, permission, encryption, cors, xss, injection |
+| `frontend-ux-expert` | react, next, component, ui, ux, design, wireframe, accessibility, performance, tailwind, state, form |
+| `platform-expert` | deploy, docker, ci/cd, test, tdd, coverage, pipeline, kubernetes, monitoring, infra, devops |
+| `product-expert` | product, roadmap, user story, mvp, backlog, prioritize, rice, acceptance criteria, feature, discovery |
+
+---
+
+## Response Structure
+
+```markdown
+## [Expert Name] — [query summary]
+
+[Recommendation — direct, no preamble]
+
+## Key Considerations
+[Trade-offs, caveats, context-specific factors]
+
+## Implementation
+[Concrete next steps or code if applicable]
+```
+
+---
+
+## Mode Limits
+
+| Mode | Lines | When to use |
+|------|-------|-------------|
+| `--quick` | 25 max | Fast answer, no trade-offs, skips skills loading |
+| default | 60 max | Recommendation with analysis |
+| `--deep` | 120 max | Architecture, complex decisions — reads all agent skills in full |
+
+---
+
+## Follow-up Offers
+
+After responding, `/consult` offers:
+
+```
+Second opinion from another expert? [backend/security/frontend/platform/product] · [N]o
+Convert these recommendations into an executable prompt? /prompt-gen "[objective]" · [N]o
+```
+
+---
+
+## Examples
+
+```bash
+# Architecture decision with trade-offs
+/consult "Cursor-based or offset pagination for 10M records?" --deep
+
+# Quick answer
+/consult "What's the correct HTTP status for a duplicate resource?" --quick
+
+# Two independent experts
+/consult "JWT stateless vs sessions with Redis?" --experts backend,security
+
+# Security audit question
+/consult "Review the auth flow at src/auth/" --experts security
+```
+
+---
+
+## Token Cost Estimate
+
+| Mode | Approx tokens |
+|------|--------------|
+| `--quick` | ~2K |
+| default | ~5K |
+| `--deep` | ~10K |
+| `--experts X,Y` | ~2× default |

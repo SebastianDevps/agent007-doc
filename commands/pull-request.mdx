@@ -1,0 +1,98 @@
+---
+title: "/pull-request"
+description: "Create well-structured GitHub PRs with summary, test plan, and motivation."
+---
+
+## Overview
+
+`/pull-request` creates a GitHub pull request with a structured body including summary bullets, motivation, test plan, and breaking changes declaration. It verifies tests pass before creating the PR.
+
+```
+/pull-request
+```
+
+Invoked after `finishing-a-development-branch` selects "Push + PR", or directly when you want to open a PR.
+
+---
+
+## Process
+
+### Step 1 — Survey branch
+
+```bash
+git status
+git log main..HEAD --oneline     # All commits in this branch
+git diff main...HEAD --stat       # Files changed vs main
+```
+
+### Step 2 — Verify tests pass
+
+```bash
+npm test  # or pytest / go test / cargo test
+# Must see 0 failures before creating PR
+```
+
+### Step 3 — Push branch
+
+```bash
+git push -u origin $(git branch --show-current)
+```
+
+### Step 4 — Create PR
+
+```bash
+gh pr create --title "[type]: [description]" --body "$(cat <<'EOF'
+## Summary
+
+- [What was implemented]
+- [Key decision made]
+- [What was changed / removed]
+
+## Motivation
+
+[Why this change was needed — link to issue if applicable]
+
+## Test Plan
+
+- [ ] [Test scenario 1]
+- [ ] [Test scenario 2]
+- [ ] [Edge case tested]
+- [ ] Existing tests pass (npm test)
+
+## Breaking Changes
+
+[None / Describe if any]
+
+🤖 Generated with Claude Code
+EOF
+)"
+```
+
+### Step 5 — Confirm
+
+```bash
+gh pr view  # Show PR URL and status
+```
+
+---
+
+## PR Title Format
+
+Follows conventional commit format:
+
+- `feat: add user authentication`
+- `fix: resolve token expiry race condition`
+- `refactor: extract payment service`
+
+Max 70 characters.
+
+---
+
+## Checklist Before Creating
+
+- Branch pushed to remote
+- Tests passing (0 failures)
+- Title ≤ 70 chars, conventional format
+- Summary bullets are clear (no "changed some files")
+- Test plan is concrete, not "tested manually"
+- No secrets or credentials in diff

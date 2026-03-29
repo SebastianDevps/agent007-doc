@@ -1,0 +1,119 @@
+---
+title: "Agent007 v5.1.1"
+description: "Intelligent Development Orchestration System — 8 expert agents · 25 active skills · 12 commands · autonomous pipeline · SDD-enforced"
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/logo.png"
+  alt="Agent007 Hero"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/logo.png"
+  alt="Agent007 Hero"
+/>
+
+## What is Agent007?
+
+Agent007 is a Claude Code plugin that transforms how you develop software. It provides an **intelligent orchestration layer** on top of Claude — a team of 8 expert agents, 25 active skills, and 12 commands that work together to plan, implement, review, and ship production-quality code autonomously.
+
+Every message is **automatically classified and routed** to the right expert. Every claim is **backed by evidence**. Every task follows the **SDD Iron Law**: no production code without a defined observable scenario first.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in under 5 minutes
+  </Card>
+  <Card
+    title="Commands"
+    icon="terminal"
+    href="/commands/dev"
+  >
+    12 slash commands — from /dev to /orchestrate
+  </Card>
+  <Card
+    title="Agents"
+    icon="users"
+    href="/agents/overview"
+  >
+    8 expert agents with principle of least privilege
+  </Card>
+  <Card
+    title="Changelog"
+    icon="clock"
+    href="/changelog"
+  >
+    What's new in v5.1.1
+  </Card>
+</CardGroup>
+
+---
+
+## Ecosystem at a Glance
+
+| Category | Count | Details |
+|----------|-------|---------|
+| Expert agents | **8** | backend-db, code-reviewer, frontend-ux, loop-operator, platform, product, refactor-cleaner, security |
+| Skills (invokable) | **19** | pipeline + domain + workflow-utils |
+| Skills (auto-injected) | **6** | core + orchestration |
+| Skills (total active) | **25** | — |
+| Commands | **12** | /dev, /consult, /ralph-loop, /orchestrate, /prompt-gen, /deep-research, /commit, /pull-request, /security-scan, /instinct-status, /evolve, /changelog |
+| Hooks | **17** | pre-commit-guard, block-no-verify, memory-check, format-on-save, sdd-guard, and more |
+| Rules | **7** | typescript, security, git-workflow, patterns, coding-style, testing, api-design |
+| Tests | **100+** | 91 integration tests added in v5.1.1 |
+
+---
+
+## Routing Intelligence
+
+Every message is classified before any action is taken:
+
+```
+🎯 [TYPE] → [ROUTE] | Risk: [low|medium|high|critical]
+```
+
+| Message type | Signal words | Route |
+|---|---|---|
+| feature | add, implement, create, build | `/dev` |
+| bug | fix, error, broken, not working | systematic-debugging → SDD |
+| consult | should I, recommend, best practice | `/consult` |
+| refactor | refactor, clean up, optimize | `sop-reverse` → plan |
+| review | code review, audit, check quality | `code-reviewer` |
+| research | investigate, explore, compare | `/deep-research` |
+| ralph | loop until, autonomous, until tests pass | `loop-operator` → `/ralph-loop` |
+| cleanup | dead code, unused, depcheck | `refactor-cleaner` |
+
+---
+
+## Immutable Rules
+
+These rules are always active and cannot be overridden:
+
+- **NEVER** claim "done" without `Skill('verify')` passing with evidence
+- **NEVER** write production code before defining an observable scenario (SDD Iron Law)
+- **NEVER** modify scenarios to make code pass — scenarios are external holdout sets
+- **NEVER** assume user approval — require explicit confirmation
+- **ALWAYS** read a file before editing it
+- **ALWAYS** show routing decision before any skill invocation
+
+---
+
+## Pipeline Map
+
+```
+simple  → generate → verify → done
+          On FAIL: retry with feedback (max 3). On 3× FAIL: escalate.
+
+medium  → plan → [generate → verify] → code-reviewer → branch-finish
+
+complex → brainstorming → git-worktree → plan
+          → [generate → verify] + ralph-loop per task
+          → human gate → branch-finish
+
+refactor → sop-reverse → plan → medium pipeline
+bug      → systematic-debugging → generate → verify
+```

@@ -1,0 +1,161 @@
+---
+title: "/dev"
+description: "Master autonomous development command. Classifies the task, selects the optimal workflow path, and executes using all ecosystem elements."
+---
+
+## Overview
+
+`/dev` is the entry point for all development work. It automatically classifies your task by complexity and risk, chooses the right pipeline, and executes it — dispatching expert subagents, running verification, and managing branches.
+
+```
+/dev "<task description>"
+/dev "<task>" --simple
+/dev "<task>" --ralph --max-iterations 30 --verify "npm test"
+/dev "<task>" --full
+```
+
+---
+
+## Complexity Classification
+
+Before executing, `/dev` shows a routing decision:
+
+```
+🎯 dev → [WORKFLOW PATH]
+Complexity: [simple|medium|complex] | Risk: [low|medium|high|critical]
+Ralph: [active --max-iterations N | inactive]
+Stack: [detected technologies]
+```
+
+| Complexity | Signals | Workflow |
+|---|---|---|
+| **Simple** | Single file, bug fix, < 30 min, no design decisions | Direct implementation |
+| **Medium** | Multiple files, new feature, 30 min–2 hrs | Plan → subagent execution |
+| **Complex** | Architecture change, unclear requirements, > 2 hrs | Brainstorm → worktree → plan → subagents |
+
+---
+
+## Workflow Paths
+
+### Path A — Simple (direct implementation)
+
+```
+1. Read relevant files (Glob + Grep before editing)
+2. Implement with enforcement active
+3. Run verification: npm test / npm run build / npm run lint
+4. Show actual output — no claims without evidence
+```
+
+### Path B — Medium (plan → subagent execution)
+
+```
+1. Skill('plan')       → Save to docs/changes/<feature>/spec.md
+2. Skill('subagent-driven-development')
+   → Per task: implementer subagent → spec review → quality review → commit
+3. Skill('finishing-a-development-branch')
+   → Tests pass → 4 options: merge / push+PR / keep / discard
+```
+
+### Path C — Complex (full autonomous pipeline)
+
+```
+1. Skill('brainstorming')         → Socratic requirements exploration
+2. Skill('using-git-worktrees')   → Create feat/<branch> in .worktrees/
+3. Skill('plan')                  → Full TDD task breakdown
+4. Skill('subagent-driven-development')
+   → Expert subagent per task (auto-routed by domain)
+   → Ralph loop per task (if --ralph or auto-detected)
+   → Two-stage review after each task
+   → Commit after each approved task
+5. Final code review (full diff)
+6. Skill('finishing-a-development-branch')
+```
+
+---
+
+## Ralph Mode
+
+Ralph mode auto-activates when ANY of these is true:
+
+- Explicit `--ralph` flag
+- Explicit `--persist` flag
+- Task mentions "loop until", "until tests pass", "autonomous", "run overnight"
+- Task is TDD-oriented with a clear verification command
+
+---
+
+## Flags Reference
+
+| Flag | Effect |
+|------|--------|
+| `--simple` | Skip brainstorm + worktree, implement directly |
+| `--full` | Force Path C regardless of complexity |
+| `--ralph` | Wrap execution in ralph loop |
+| `--max-iterations N` | Ralph max iterations (default: 20, max: 50) |
+| `--verify "cmd"` | Verification command for ralph (e.g., `"npm test"`) |
+| `--no-review` | Skip code review stages (prototypes only) |
+
+---
+
+## Risk Escalation
+
+High/critical risk tasks require explicit confirmation before proceeding:
+
+```
+⚠️ High-risk task detected: [auth/payment/migration/etc]
+Proceeding will affect [describe impact].
+Continue? [yes/no]
+```
+
+Domains that always trigger high/critical: **auth · payment · encryption · migration · breaking-change**
+
+---
+
+## Expert Agent Auto-Routing
+
+Within `subagent-driven-development`, tasks are auto-dispatched to the right expert:
+
+| Task signals | Agent dispatched |
+|---|---|
+| API, DB, NestJS, TypeORM, backend | `backend-db-expert` |
+| React, Next.js, Tailwind, UI/UX | `frontend-ux-expert` |
+| CI/CD, tests, Docker, infra | `platform-expert` |
+| auth, permissions, security, jwt | `security-expert` |
+
+---
+
+## Examples
+
+```bash
+# Simple bug fix — direct, no pipeline
+/dev "Fix null pointer error in UserService.findById()"
+
+# New feature — plan then subagents
+/dev "Add pagination to the /users endpoint using cursor-based pagination"
+
+# Complex feature with ralph loop
+/dev "Build the kanban board with NextJS/Tailwind" --ralph --max-iterations 30 --verify "npm test"
+
+# Autonomous overnight run
+/dev "Implement the complete auth module (JWT + refresh tokens + RBAC)" --full --ralph --max-iterations 50
+```
+
+---
+
+## Ecosystem Integration
+
+```
+/dev
+ ├── Skill('brainstorming')                    (complex: unclear requirements)
+ ├── Skill('using-git-worktrees')             (medium + complex: isolated branch)
+ ├── Skill('plan')                            (medium + complex: task breakdown)
+ ├── Skill('subagent-driven-development')     (execution engine)
+ │    ├── backend-db-expert                   (API, DB, NestJS tasks)
+ │    ├── frontend-ux-expert                  (React, Next.js tasks)
+ │    ├── platform-expert                     (CI/CD, tests, infra tasks)
+ │    ├── security-expert                     (auth, permissions tasks)
+ │    ├── Skill('generate')                   (TDD: RED → GREEN → REFACTOR)
+ │    ├── /ralph-loop                         (autonomous iteration per task)
+ │    └── Skill('verify')                     (after each task)
+ └── Skill('finishing-a-development-branch')  (merge/PR/cleanup)
+```

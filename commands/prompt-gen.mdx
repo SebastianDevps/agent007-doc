@@ -1,0 +1,124 @@
+---
+title: "/prompt-gen"
+description: "Convert /consult expert recommendations into precision prompts using the Anthropic 10-component framework."
+---
+
+## Overview
+
+`/prompt-gen` takes the context from a recent `/consult` and converts it into a structured, executable prompt. Without this step, `/dev` must rediscover all expert context. With it, Claude starts with all decisions pre-loaded.
+
+```
+/prompt-gen "[objective]"
+/prompt-gen "[objective]" --target dev
+/prompt-gen "[objective]" --target subagent
+/prompt-gen "[objective]" --target session
+/prompt-gen "[objective]" --save
+```
+
+---
+
+## When to Use
+
+After `/consult`, you have expert context as conversational text. `/prompt-gen` compresses it into a structured prompt with the 10 Anthropic framework components. Use it when:
+
+- Continuing in the same session with `/dev`
+- Dispatching a subagent in `subagent-driven-development`
+- Starting a new session with a different model
+
+`/prompt-gen` is automatically offered at the end of every `/consult` that contains actionable technical recommendations.
+
+---
+
+## Targets
+
+| Flag | Output format | When |
+|------|--------------|------|
+| `--target dev` _(default)_ | Compressed instruction for `/dev` (≤ 250 words) | Continue in same session |
+| `--target subagent` | Full XML for subagent dispatch | `subagent-driven-development` needs pre-loaded context |
+| `--target session` | Standalone XML system prompt | New session / different model / external use |
+
+Before generating, shows:
+```
+🎯 prompt-gen → [TARGET]
+Expert origin: [agent] | Domain: [stack] | Objective: [intent]
+```
+
+---
+
+## The 10 Anthropic Components
+
+Each generated prompt includes:
+
+1. **`<identity>`** — Specific to the stack and project (not generic "expert developer")
+2. **`<task_context>`** — Expert decisions pre-loaded (model doesn't re-evaluate what the expert already decided)
+3. **`<capabilities>`** — Available tools and skills listed explicitly
+4. **`<constraints>`** — Agent007's 4 immutable rules + domain-specific constraints
+5. **`<behavioral_guidelines>`** — How to behave based on task type (implement/review/design/debug)
+6. **`<task_specific_instructions>`** — Expert recommendations converted to numbered phases with completion criteria
+7. **`<output_format>`** — Exact specification of what to produce
+8. **`<examples>`** — Only included when real examples exist from the codebase (never fabricated)
+9. **`<thinking_framework>`** — Scratchpad: list what's done, identify dependencies, verify evidence
+10. **`<meta_instructions>`** — Uncertainty handling + enforcement against contradictory inputs
+
+---
+
+## Example
+
+After consulting about JWT refresh tokens:
+
+```
+/consult "How do I implement refresh token rotation securely in NestJS?"
+
+/prompt-gen "implement refresh token rotation" --target dev
+```
+
+Generated output:
+
+```
+/dev "Implement refresh token rotation in NestJS.
+
+Technical context (security-expert):
+- Refresh token stored hashed in DB (refreshTokenHash field on User entity)
+- Delivered to client via httpOnly cookie only — never in body/localStorage (OWASP)
+- Each refresh token use invalidates the previous and issues a new one (rotation)
+- Reuse of invalidated token → revoke ALL user sessions (replay attack prevention)
+- TTL: access token 15min, refresh token 7 days
+
+Stack: NestJS + TypeORM + PostgreSQL
+
+Success criteria:
+- POST /auth/refresh issues new pair and persists new hash
+- Reuse of invalidated token returns 401 and clears refreshTokenHash
+- npm run test:e2e → happy path + replay attack + expired token all pass
+
+Constraints:
+- Never store token in plain text at any point in the flow"
+```
+
+---
+
+## Save Flag
+
+With `--save`, the generated prompt is saved to:
+
+```
+.claude/prompts/<intent-slug>-<date>.md
+```
+
+The file includes: date, origin expert, target, the `/consult` context that generated it, and the full prompt.
+
+---
+
+## Quality Checklist
+
+Before delivering, `/prompt-gen` verifies:
+
+- `identity` has real stack + project context (not generic)
+- `task_context` includes expert decisions (model doesn't rediscover them)
+- `constraints` includes all 4 Agent007 rules + domain constraints
+- `task_specific_instructions` has phases with completion criteria
+- `thinking_framework` includes scratchpad
+- `meta_instructions` covers uncertainty handling
+- Format matches the `--target`
+- Prompt is self-contained (an engineer could follow it without asking questions)
+- No generic phrases ("implement the feature", "make sure to...")

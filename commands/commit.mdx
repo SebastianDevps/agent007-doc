@@ -1,0 +1,114 @@
+---
+title: "/commit"
+description: "Generate pipe-delimited commits following the Agent007 standard format."
+---
+
+## Overview
+
+`/commit` generates commits in the Agent007 pipe-delimited format. It surveys changes, stages the right files, writes the commit message, and verifies the result.
+
+```
+/commit
+```
+
+No arguments needed — `/commit` reads the current git state and guides you through the process.
+
+---
+
+## Commit Format
+
+```
+Tipo|IdTarea|YYYYMMDD|Descripción breve
+```
+
+| Component | Description |
+|-----------|-------------|
+| `Tipo` | Nature of the change (see types below) |
+| `IdTarea` | Ticket / task board ID (omit if none — leave empty between pipes) |
+| `YYYYMMDD` | Commit date — runs `date +%Y%m%d` automatically |
+| `Descripción` | Action in English, imperative mood, max 60 characters |
+
+### Valid Types
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New functionality |
+| `fix` | Bug correction |
+| `refactor` | Code restructuring / improvement |
+| `review` | Code review adjustments |
+| `test` | Tests implementation or adjustment |
+| `docs` | Documentation changes |
+| `chore` | Maintenance or minor tasks |
+
+---
+
+## Process
+
+### Step 1 — Survey changes
+
+```bash
+git status              # Untracked files
+git diff --staged       # What's staged
+git diff                # Unstaged changes
+git log --oneline -5    # Recent commits (match style)
+date +%Y%m%d            # Get today's date
+```
+
+### Step 2 — Stage relevant files
+
+Prefers specific files over `git add -A` to avoid accidentally including secrets or large binaries.
+
+Never stages: `.env`, `secrets/`, credential files, large binaries.
+
+### Step 3 — Write commit message
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat|LIQUI|20260329|Implement complete CRUD for cargos module
+EOF
+)"
+```
+
+### Step 4 — Verify
+
+```bash
+git log --oneline -1    # Confirm commit exists
+git show --stat HEAD    # Confirm correct files included
+```
+
+---
+
+## Examples
+
+```bash
+feat|LIQUI|20251022|Implement complete CRUD for cargos module
+fix|LIQUI|20251022|Fix regex validation in CreateCargoDto
+refactor|20251022|Optimize queries in CargosService
+test|LIQUI|20251022|Add unit tests for cargos module
+docs|LIQUI|20251022|Update API documentation for cargos endpoints
+chore|LIQUI|20251022|Configure linting rules for DTOs
+review|LIQUI|20251022|Apply code review suggestions to cargos module
+```
+
+---
+
+## Pre-Commit Guard
+
+The `pre-commit-guard.py` hook (registered in `settings.json`) intercepts every `git commit` and blocks:
+
+- Staged `.env` files
+- Hardcoded secrets (`API_KEY=`, `SECRET=`, `PASSWORD=`, `TOKEN=` with literal values)
+- JS `debug` statements (`debugger` keyword)
+- Commits that don't follow the pipe-delimited format
+
+The `block-no-verify.py` hook blocks all `git commit --no-verify` calls — bypassing the guard is not allowed.
+
+---
+
+## Pre-Commit Checklist
+
+- Format: `Tipo|IdTarea|YYYYMMDD|Descripción`
+- Description is clear and concise (max 60 characters)
+- Code is tested
+- No linting errors
+- No secrets or credentials in diff

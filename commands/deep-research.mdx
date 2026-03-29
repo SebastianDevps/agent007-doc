@@ -1,0 +1,110 @@
+---
+title: "/deep-research"
+description: "Systematic 4-phase research methodology for technical and product questions."
+---
+
+## Overview
+
+`/deep-research` applies a structured 4-phase methodology to answer technical or product questions. It cross-references multiple authoritative sources, assigns confidence levels, and surfaces gaps before making recommendations.
+
+```
+/deep-research "question or topic"
+```
+
+---
+
+## When to Use
+
+- Researching new technologies, libraries, or APIs
+- Comparing architectural approaches with trade-offs
+- Understanding best practices for a domain
+- Gathering evidence before making implementation recommendations
+- Any question requiring external source validation
+
+---
+
+## The 4 Phases
+
+### Phase 1 — Problem Definition
+
+Before searching, the research question is stated precisely:
+
+```
+RESEARCH QUESTION: [exact question to answer]
+SCOPE: [what's in / out of scope]
+SUCCESS CRITERIA: [what does a good answer look like?]
+KNOWN CONTEXT: [what do we already know?]
+UNKNOWNS: [what specifically needs verification?]
+```
+
+No searches begin until this is written.
+
+### Phase 2 — Source Discovery
+
+Sources are prioritized in this order:
+
+1. **Official documentation** — vendor docs, spec files, RFC/PEP/BEP
+2. **Primary sources** — original papers, GitHub repos, release notes
+3. **High-quality secondary** — well-known engineering blogs (Stripe, Netflix, Uber, GitHub)
+4. **Community consensus** — Stack Overflow (high vote counts), GitHub issues
+5. **Benchmarks** — with methodology disclosed
+
+Source quality checks: dated? author credible? evidence provided? consensus or outlier?
+
+### Phase 3 — Synthesis
+
+Findings are organized into a structured table:
+
+| Question | Answer | Source | Confidence |
+|----------|--------|--------|------------|
+| [q1] | [answer] | [url/file] | high/medium/low |
+
+Confidence levels:
+- **high** — multiple authoritative sources agree
+- **medium** — one authoritative source or consensus without primary docs
+- **low** — community opinion, no direct evidence, or conflicting sources
+
+### Phase 4 — Output
+
+```markdown
+## Research: [Topic]
+
+### Bottom Line
+[Conclusion first — 2–3 sentences max]
+
+### Evidence
+[Findings table from Phase 3]
+
+### Recommendation
+[Concrete action based on evidence]
+
+### Caveats
+[Confidence gaps, conflicting sources, what might change]
+
+### Sources
+- [Source 1] — [why it was trusted]
+- [Source 2] — [why it was trusted]
+```
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | Correct behavior |
+|---|---|
+| Searching without a question | Define research question first (Phase 1) |
+| Trusting single source | Cross-reference minimum 2 authoritative sources |
+| Fabricating citations | Only cite sources actually fetched and read |
+| Claiming confidence without evidence | Use confidence levels table |
+| "Typically" / "usually" | Find the actual documentation and cite it |
+| Outdated information | Note publication date, flag if > 2 years old |
+
+---
+
+## Example
+
+```
+/deep-research "What are the performance characteristics of cursor-based vs offset pagination in PostgreSQL at 10M rows?"
+```
+
+Produces a report with: bottom line recommendation, evidence table with sources, benchmarks (if available), and caveats about dataset size / index structure dependencies.

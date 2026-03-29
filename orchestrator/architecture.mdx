@@ -1,0 +1,191 @@
+---
+title: "Orchestrator Architecture"
+description: "TypeScript pipeline engine with wave scheduling, budget enforcement, task classification, and HANDOFF protocol."
+---
+
+## Overview
+
+The Agent007 Orchestrator is a TypeScript engine located in `.claude/orchestrator/`. It is the programmatic backbone behind `/dev` and `/orchestrate` — providing deterministic task classification, dependency-aware wave scheduling, budget enforcement, and structured state persistence.
+
+```bash
+agent007 --task "description" --workflow feature|bugfix|orchestrate|ralph-loop
+```
+
+---
+
+## CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--task` | Required | What to do |
+| `--workflow` | `feature` | Pipeline type (`feature`, `bugfix`, `orchestrate`, `ralph-loop`) |
+| `--dry-run` | false | No real claude calls — for testing |
+| `--verbose` | false | Extra logging |
+| `--max-parallel` | 5 | Max concurrent subagents (1–10) |
+| `--budget` | 0.40 | Context ceiling 0–1 |
+| `--state-dir` | `.sdlc/state` | Where to write state |
+| `--claude-bin` | `claude` | Claude binary path |
+
+---
+
+## Module Map
+
+```
+.claude/orchestrator/src/
+├── index.ts          ← CLI entry point (parseArgs → Pipeline.run())
+├── types.ts          ← All shared types (TaskType, Complexity, RiskLevel, etc.)
+├── classifier.ts     ← Deterministic keyword-based task classification
+├── pipeline.ts       ← Pipeline engine (routing + phase execution)
+├── wave-executor.ts  ← Dependency-aware parallel wave execution
+├── spawner.ts        ← Subagent spawner (claude CLI subprocess)
+├── budget.ts         ← Context budget enforcement
+├── state.ts          ← Session state management (.sdlc/state/)
+└── verify.ts         ← Output verification (COMPLETE tag + plan parsing)
+```
+
+---
+
+## Classification Engine
+
+The classifier (`classifier.ts`) is **deterministic** — same input always produces the same output. No Claude calls involved.
+
+It classifies every task into:
+
+| Dimension | Values |
+|-----------|--------|
+| `type` | `feature` · `bugfix` · `refactor` · `security` · `performance` · `docs` · `test` · `chore` |
+| `complexity` | `simple` · `medium` · `complex` |
+| `risk` | `low` · `medium` · `high` · `critical` |
+| `domain` | `backend` · `frontend` · `fullstack` · `infra` · `unknown` |
+| `requiresDiscussLock` | `boolean` — `true` for complex/high-risk tasks |
+| `estimatedWaves` | `number` — wave count estimate |
+
+### Complexity Signals
+
+- **complex**: architecture, multi-tenant, distributed, microservice, authentication, payment, oauth, jwt, pipeline, > 30 words
+- **simple**: single, quick, minor, typo, rename, fix typo, bump version, or explicitly keyword `simple`
+- **medium**: everything in between
+
+---
+
+## Pipeline Routing
+
+```typescript
+if (type === "bugfix")   → pipelineBugfix()
+if (type === "refactor") → pipelineRefactor()
+if (type === "security") → pipelineSecurity()
+if (complexity === "simple") → pipelineSimple()
+if (complexity === "medium") → pipelineMedium()
+else                         → pipelineComplex()
+```
+
+### Pipeline Phases
+
+| Pipeline | Phases |
+|----------|--------|
+| `feature-simple` | generate → verify |
+| `feature-medium` | plan → wave-execution → code-review |
+| `feature-complex` | discuss-lock → plan → wave-execution → verify → code-review → branch-finish |
+| `bugfix` | systematic-debugging → fix → verify |
+| `refactor` | refactor-cleaner → verify |
+| `security` | security-audit → fix → verify |
+
+---
+
+## Wave Executor
+
+Wave scheduling (`wave-executor.ts`) groups tasks by dependency:
+
+- Tasks with no dependencies form **Wave 1**
+- Tasks whose dependencies are all in Wave N form **Wave N+1**
+- Tasks within a wave execute **in parallel** (up to `--max-parallel`)
+- Circular dependencies are detected at schedule time → pipeline aborts with error
+
+```
+Example: 5 tasks
+  PLAN (no deps)      → Wave 0
+  TASK-001 (deps: PLAN) → Wave 1
+  TASK-002 (deps: PLAN) → Wave 1  ← parallel with TASK-001
+  TASK-003 (deps: TASK-001) → Wave 2
+  REVIEW (deps: TASK-002, TASK-003) → Wave 3
+```
+
+---
+
+## Budget Enforcement
+
+`budget.ts` reads context usage from `.sdlc/state/` and enforces the `--budget` ceiling (default 40% of context window).
+
+If budget is exceeded: throws an error that halts the pipeline phase. The human is notified and must decide whether to continue in a fresh session.
+
+---
+
+## State Persistence
+
+State is written to `.sdlc/state/` after every phase:
+
+```json
+{
+  "sessionId": "abc-123",
+  "startedAt": "2026-03-29T...",
+  "task": "...",
+  "workflow": "feature",
+  "classification": { "type": "feature", "complexity": "medium", ... },
+  "phase": "wave-execution",
+  "tasks": [{ "id": "TASK-001", "status": "complete", ... }],
+  "waves": [{ "index": 0, "tasks": [...] }],
+  "budget": { "percentUsed": 0.32, ... },
+  "errors": []
+}
+```
+
+---
+
+## HANDOFF Protocol
+
+For `/orchestrate` workflows, each agent writes a HANDOFF document before the next agent starts:
+
+```
+.sdlc/handoffs/<workflow-id>/<agent-name>-handoff.md
+```
+
+Workflow ID format: `<type>-<YYYYMMDD>-<short-desc>`
+
+The HANDOFF contains: status (COMPLETE/PARTIAL/BLOCKED), context, findings, files modified, open questions, and recommendations for the next agent. No agent starts without reading the previous HANDOFF.
+
+---
+
+## Discuss-Lock Gate
+
+Complex or high-risk tasks require a DECISIONS.md gate before the plan phase:
+
+```
+.sdlc/context/DECISIONS.md  ← must exist and be non-empty
+```
+
+If the file is missing or empty, the pipeline fails with:
+
+```
+🔒 DISCUSS-LOCK GATE FAILED
+   → Run brainstorming first, then re-run the orchestrator.
+```
+
+Bypass with `--force` (only for prototypes).
+
+---
+
+## Test Suite
+
+The orchestrator has 100+ tests (91 added in v5.1.1):
+
+```
+.claude/orchestrator/tests/
+├── classifier.test.ts
+├── spawner.test.ts
+├── wave-executor.test.ts
+├── verify.test.ts
+├── budget.test.ts
+└── pipeline.test.ts
+```
+
+Run: `cd .claude/orchestrator && npm test`
