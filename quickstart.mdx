@@ -12,20 +12,21 @@ description: "Get Agent007 v5.0.0 running in your Claude Code project in under 5
 
 ## Installation
 
-Agent007 ships as a `.claude/` directory that you drop into any project root.
+Agent007 is available as a Claude Code plugin via the marketplace.
 
 <Steps>
-  <Step title="Clone or copy the plugin">
-    Copy the `.claude/` directory from the Agent007 repository into your project root:
-
+  <Step title="Add the marketplace">
     ```bash
-    git clone https://github.com/SebastianDevps/agent007 /tmp/agent007
-    cp -r /tmp/agent007/ /your-project/.claude/
+    /plugin marketplace add SebastianDevps/agent007-marketplace
     ```
   </Step>
 
-  <Step title="Verify the structure">
-    Your project should now have:
+  <Step title="Install Agent007">
+    ```bash
+    /plugin install agent007@agent007-marketplace
+    ```
+
+    This drops a `.claude/` directory into your project root with:
 
     ```
     your-project/
@@ -36,14 +37,14 @@ Agent007 ships as a `.claude/` directory that you drop into any project root.
     │   ├── skills/            ← 25+ active skills
     │   ├── hooks/             ← 28 hooks (21 quality gates + 7 OpenClaw primitives)
     │   ├── rules/             ← 5 coding rule files
-    │   ├── scripts/           ← wave-scheduler.js + test scripts
+    │   ├── scripts/           ← wave-scheduler.js + utilities
     │   └── settings.json      ← hook registration + permissions
     └── your-project-files...
     ```
   </Step>
 
   <Step title="Open Claude Code">
-    Start a new session in your project directory. Claude Code will automatically load `CLAUDE.md` and all context imports.
+    Start a new session in your project directory. Claude Code automatically loads `CLAUDE.md` and all context imports.
 
     You'll see the routing classification on your first task message:
     ```
@@ -52,20 +53,19 @@ Agent007 ships as a `.claude/` directory that you drop into any project root.
   </Step>
 
   <Step title="Run your first command">
-    Try the master development command:
-
     ```
     /dev "Add a health check endpoint to the API"
     ```
 
-    Agent007 will:
-    1. Classify the task (feature, medium complexity)
-    2. Show routing decision + risk level
-    3. Generate a plan with 2–5 min tasks
-    4. Dispatch the right expert subagent
-    5. Verify output before claiming done
+    Agent007 will classify the task, show the routing decision, generate a plan, dispatch the right expert subagent, and verify output before claiming done.
   </Step>
 </Steps>
+
+### Updates
+
+```bash
+/plugin update agent007
+```
 
 ---
 
