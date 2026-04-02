@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "Get Agent007 v5.1.1 running in your Claude Code project in under 5 minutes"
+description: "Get Agent007 v5.0.0 running in your Claude Code project in under 5 minutes"
 ---
 
 ## Prerequisites
@@ -19,12 +19,8 @@ Agent007 ships as a `.claude/` directory that you drop into any project root.
     Copy the `.claude/` directory from the Agent007 repository into your project root:
 
     ```bash
-    # Option A: clone and copy
-    git clone https://github.com/sebasing/PluginClaude /tmp/agent007
-    cp -r /tmp/agent007/.claude ./
-
-    # Option B: if working from the repo directly
-    # The .claude/ directory is already in place
+    git clone https://github.com/SebastianDevps/agent007 /tmp/agent007
+    cp -r /tmp/agent007/ /your-project/.claude/
     ```
   </Step>
 
@@ -37,9 +33,10 @@ Agent007 ships as a `.claude/` directory that you drop into any project root.
     │   ├── CLAUDE.md          ← orchestrator instructions (auto-loaded)
     │   ├── agents/            ← 8 expert agents
     │   ├── commands/          ← 12 slash commands
-    │   ├── skills/            ← 25 active skills
-    │   ├── hooks/             ← 17 automation hooks
-    │   ├── rules/             ← 7 coding rule files
+    │   ├── skills/            ← 25+ active skills
+    │   ├── hooks/             ← 28 hooks (21 quality gates + 7 OpenClaw primitives)
+    │   ├── rules/             ← 5 coding rule files
+    │   ├── scripts/           ← wave-scheduler.js + test scripts
     │   └── settings.json      ← hook registration + permissions
     └── your-project-files...
     ```

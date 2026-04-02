@@ -1,6 +1,6 @@
 ---
-title: "Agent007 v5.1.1"
-description: "Intelligent Development Orchestration System — 8 expert agents · 25 active skills · 12 commands · autonomous pipeline · SDD-enforced"
+title: "Agent007 v5.0.0"
+description: "Intelligent Development Orchestration System — 8 expert agents · 25+ active skills · 12 commands · 28 hooks · autonomous pipeline · SDD-enforced"
 ---
 
 <img
@@ -16,7 +16,7 @@ description: "Intelligent Development Orchestration System — 8 expert agents �
 
 ## What is Agent007?
 
-Agent007 is a Claude Code plugin that transforms how you develop software. It provides an **intelligent orchestration layer** on top of Claude — a team of 8 expert agents, 25 active skills, and 12 commands that work together to plan, implement, review, and ship production-quality code autonomously.
+Agent007 is a Claude Code plugin that provides an **intelligent orchestration layer** on top of Claude — 8 expert agents, 25+ active skills, and 12 commands that work together to plan, implement, review, and ship code.
 
 Every message is **automatically classified and routed** to the right expert. Every claim is **backed by evidence**. Every task follows the **SDD Iron Law**: no production code without a defined observable scenario first.
 
@@ -40,14 +40,14 @@ Every message is **automatically classified and routed** to the right expert. Ev
     icon="users"
     href="/agents/overview"
   >
-    8 expert agents with principle of least privilege
+    8 expert agents with tool policy enforcement
   </Card>
   <Card
     title="Changelog"
     icon="clock"
     href="/changelog"
   >
-    What's new in v5.1.1
+    What's new in v5.0.0
   </Card>
 </CardGroup>
 
@@ -60,11 +60,26 @@ Every message is **automatically classified and routed** to the right expert. Ev
 | Expert agents | **8** | backend-db, code-reviewer, frontend-ux, loop-operator, platform, product, refactor-cleaner, security |
 | Skills (invokable) | **19** | pipeline + domain + workflow-utils |
 | Skills (auto-injected) | **6** | core + orchestration |
-| Skills (total active) | **25** | — |
+| Skills (total active) | **25+** | — |
 | Commands | **12** | /dev, /consult, /ralph-loop, /orchestrate, /prompt-gen, /deep-research, /commit, /pull-request, /security-scan, /instinct-status, /evolve, /changelog |
-| Hooks | **17** | pre-commit-guard, block-no-verify, memory-check, format-on-save, sdd-guard, and more |
-| Rules | **7** | typescript, security, git-workflow, patterns, coding-style, testing, api-design |
-| Tests | **100+** | 91 integration tests added in v5.1.1 |
+| Hooks | **28** | 7 new OpenClaw primitives + 21 existing quality gates |
+| Rules | **5** | typescript, security, git-workflow, patterns, coding-style |
+
+---
+
+## OpenClaw Primitives
+
+7 new safety and orchestration hooks that run automatically on every session:
+
+| Hook | Trigger | What it does |
+|------|---------|--------------|
+| `tool-loop-detection` | PostToolUse/all | SHA-256 fingerprint sliding window. Warning at 10 identical calls, circuit breaker at 30. |
+| `context-engine` | PreToolUse/Agent + Stop | Estimates token budget before each subagent spawn. Writes `.sdlc/state/context-budget.json`. Blocks spawn if > 80%. |
+| `mutation-guard` | PreToolUse/Write\|Edit\|Bash | Fingerprints writes by content hash. Silently skips exact duplicate operations. |
+| `memory-decay` | SessionStart | Marks MEMORY.md entries stale at ~30 days, archives at ~60 days using exponential decay. |
+| `tool-policy-guard` | PreToolUse/Write\|Edit | Enforces `tool_profile` per active agent: `minimal` / `coding` / `full`. |
+| `provider-rotation` | PreToolUse/Agent | Tracks model failures with exponential cooldown. Recommends failover: opus → sonnet → haiku. |
+| `transcript-policy` | SubagentStart | Injects model-tier directive: haiku gets concise mode, opus gets deep-analysis mode, sonnet is unchanged. |
 
 ---
 

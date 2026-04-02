@@ -3,6 +3,63 @@ title: "Changelog"
 description: "All notable changes to Agent007. Format: Keep a Changelog."
 ---
 
+## [5.0.0] — 2026-04-02 — "OpenClaw Integration"
+
+> GitHub tag: `v5.0.0` · Full reset of the plugin with all prior v5.1.x features included.
+
+### Added
+
+**10 OpenClaw primitives** — orchestration and safety hooks inspired by OpenClaw's agent coordination patterns:
+
+| Primitive | Hook event | Behavior |
+|-----------|-----------|----------|
+| `tool-loop-detection` | PostToolUse/all | SHA-256 fingerprint window (30 calls). Warning at 10, circuit breaker at 30. |
+| `context-engine` | PreToolUse/Agent + Stop | Token budget estimation before each spawn. Writes `context-budget.json`. Blocks at 80%. |
+| `mutation-guard` | PreToolUse/Write\|Edit\|Bash | Content-hash deduplication. Skips exact duplicate writes silently. |
+| `memory-decay` | SessionStart | Exponential decay (λ=0.023) on MEMORY.md entries. Stale at 30 days, archived at 60 days. |
+| `tool-policy-guard` | PreToolUse/Write\|Edit | Enforces `tool_profile: minimal/coding/full` per active agent. Fail-open if no profile detected. |
+| `provider-rotation` | PreToolUse/Agent | Cooldown tracking: 5/15/60 min. Failover chain: opus → sonnet → haiku. |
+| `transcript-policy` | SubagentStart | Model-tier directive injection: haiku → concise, opus → deep-analysis, sonnet → no change. |
+| **Yield Pattern** | SDD skill v3.0 | Parallel wave execution — multiple Agent() calls in one response = true async fork-join. |
+| **Steer Pattern** | loop-operator | Drift guidance via SendMessage before kill+restart. Max 2 steer attempts then escalate. |
+| **TaskFlow** | session.json | Optimistic locking via `revision` field. Lifecycle: idle→execute→wait→resume→finish/fail/cancel. |
+
+**Wave Scheduler** — `scripts/wave-scheduler.js`: topological sort (Kahn's algorithm) for task dependency graphs. Outputs parallel execution waves from `tasks.md`.
+
+**Tool policy profiles** on all 8 agents:
+- `minimal` (Read, Glob, Grep, read-only Bash): security-expert, product-expert, code-reviewer
+- `coding` (+ Write, Edit, Bash, Agent): backend-db-expert, frontend-ux-expert, platform-expert, refactor-cleaner
+- `full` (everything): loop-operator
+
+### Changed
+
+- `subagent-driven-development.md` → v3.0: Phase 1 now runs `wave-scheduler.js --json` for wave computation. Phase 2 documents `provider-rotation --mark-failure` on spawn failure.
+- `loop-operator.md`: Steer Pattern added to escalation matrix. Drift → STEER before KILL+RESTART.
+- `CLAUDE.md`: `## OpenClaw Primitives (ACTIVE)` section with CLI tools and debug guide.
+- Hook count: 17 → **28** (7 new OpenClaw + provider-rotation + transcript-policy registered).
+
+### Removed
+
+- `hooks/context-tracker.py` → replaced by `context-engine.py`
+- `hooks/ralph-check.js` → replaced by `tool-loop-detection.py`
+- `hooks/checkpoint-writer.py` → was dead code (never in settings.json)
+- `scripts/context-budget.js` → replaced by `context-engine.py`
+- `skills/workflow-utils/strategic-compact.md` → absorbed by context-engine
+- `skills/orchestration/state-sync.md` (skill docs only) → replaced by taskflow.md
+
+### Ecosystem Stats — v5.0.0
+
+| Category | Count |
+|----------|-------|
+| Expert agents | **8** |
+| Skills (total active) | **25+** |
+| Commands | **12** |
+| Hooks | **28** (+11 vs v5.1.1) |
+| OpenClaw primitives | **10** |
+| Rules | **5** |
+
+---
+
 ## [5.1.1] — 2026-03-29 — "ECC Integration (P0 + P1)"
 
 ### Added
