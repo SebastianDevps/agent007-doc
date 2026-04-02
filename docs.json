@@ -62,15 +62,6 @@
         ]
       },
       {
-        "tab": "Orchestrator",
-        "groups": [
-          {
-            "group": "Architecture",
-            "pages": ["orchestrator/architecture"]
-          }
-        ]
-      },
-      {
         "tab": "Reference",
         "groups": [
           {
