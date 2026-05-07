@@ -1,17 +1,39 @@
 ---
-title: "/pull-request"
-description: "Create well-structured GitHub PRs with summary, test plan, and motivation."
+title: "pull-request"
+description: "Create well-structured GitHub PRs enforcing issue-first discipline. No PR without an approved issue."
 ---
+
+<Note>
+  In v6, `/pull-request` migrated from a command to a skill. Invoke via `Skill('pull-request')` — the path on disk is `.claude/skills/workflow-utils/pull-request.md`. Single source of truth, no command wrapper.
+</Note>
 
 ## Overview
 
-`/pull-request` creates a GitHub pull request with a structured body including summary bullets, motivation, test plan, and breaking changes declaration. It verifies tests pass before creating the PR.
+The `pull-request` skill creates a GitHub pull request with a structured body: linked issue, summary bullets, motivation, test plan, breaking changes, and rollback plan. **Issue-first**: every PR must link an approved issue before it can be created.
 
 ```
-/pull-request
+Skill('pull-request')
 ```
 
 Invoked after `finishing-a-development-branch` selects "Push + PR", or directly when you want to open a PR.
+
+---
+
+## Step 0 — Issue-first gate
+
+Every PR MUST link an approved GitHub issue.
+
+```bash
+gh issue view <N> --json title,labels -q '{title: .title, labels: [.labels[].name]}'
+```
+
+The skill STOPS if any of these fail:
+
+- Issue exists and is not closed
+- Issue has the `status:approved` label (maintainer-only — wait if missing)
+- Issue number known — will add `Closes #<N>` in the PR body
+
+If no issue exists, run `Skill('issue-creation')` first.
 
 ---
 
@@ -40,33 +62,52 @@ git push -u origin $(git branch --show-current)
 
 ### Step 4 — Create PR
 
+Title format: `tipo — Descripción imperativa en inglés (max 70 chars)`
+
+Examples:
+```
+feat — Add user authentication with JWT refresh rotation
+fix — Resolve null pointer in UserService.findById
+refactor — Extract payment service to shared module
+```
+
 ```bash
-gh pr create --title "[type]: [description]" --body "$(cat <<'EOF'
+gh pr create --title "tipo — Descripción imperativa" --body "$(cat <<'EOF'
+## Linked Issue
+
+Closes #<N>
+
 ## Summary
 
-- [What was implemented]
-- [Key decision made]
-- [What was changed / removed]
+- [Bullet 1: what was implemented and why]
+- [Bullet 2: key decision made]
+- [Bullet 3: what was changed / removed]
 
 ## Motivation
 
-[Why this change was needed — link to issue if applicable]
+[Why this change was needed — link to issue/ticket]
 
 ## Test Plan
 
 - [ ] [Test scenario 1]
 - [ ] [Test scenario 2]
 - [ ] [Edge case tested]
-- [ ] Existing tests pass (npm test)
+- [ ] Existing tests pass (`npm test`)
 
 ## Breaking Changes
 
 [None / Describe if any]
 
-🤖 Generated with Claude Code
+## Rollback Plan
+
+[How to revert if this breaks production — e.g. `git revert <sha>`, feature flag off]
 EOF
 )"
 ```
+
+<Warning>
+  The PR body must NEVER contain `Co-Authored-By:` footers, tool attribution lines (`Generated with...`, `🤖 ...`), or external branding. The pre-commit and pre-PR guards reject these.
+</Warning>
 
 ### Step 5 — Confirm
 
@@ -76,23 +117,23 @@ gh pr view  # Show PR URL and status
 
 ---
 
-## PR Title Format
+## Checklist before creating
 
-Follows conventional commit format:
-
-- `feat: add user authentication`
-- `fix: resolve token expiry race condition`
-- `refactor: extract payment service`
-
-Max 70 characters.
+- Linked issue with `status:approved`
+- PR body contains `Closes #<N>`
+- Branch pushed to remote
+- Tests passing (0 failures)
+- Title ≤ 70 chars, `tipo — Descripción` format
+- Summary bullets are concrete (no "changed some files")
+- Test plan is concrete (no "tested manually")
+- No secrets or credentials in diff
+- No `Co-Authored-By` / tool attribution / external branding
 
 ---
 
-## Checklist Before Creating
+## Hard rules
 
-- Branch pushed to remote
-- Tests passing (0 failures)
-- Title ≤ 70 chars, conventional format
-- Summary bullets are clear (no "changed some files")
-- Test plan is concrete, not "tested manually"
-- No secrets or credentials in diff
+- NEVER `Co-Authored-By` footer
+- NEVER tool attribution lines (`Generated with...`, `🤖 ...`)
+- NEVER ticket IDs, tool names, or branding in the title
+- NEVER force push to `main` / `develop`

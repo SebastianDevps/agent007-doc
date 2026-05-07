@@ -15,9 +15,33 @@ The dedicated operator of autonomous execution loops (ralph-loop). Starts loops 
 
 ---
 
-## Added in v5.1.1
+## Steer Pattern (v5.0 OpenClaw, active in v6)
 
-`loop-operator` is a new agent added in v5.1.1 (GAP-002). It replaced ad-hoc ralph loop management with a dedicated control plane that enforces pre-start checklists, checkpoints, and structured escalation.
+DRIFT = making progress in the wrong direction (wrong abstraction, ignoring constraints, diverging from spec).
+STALL = no progress at all (same error × 3 OR zero file changes × 2).
+
+```
+On DRIFT:
+  1. Build guidance message (max 2,000 chars):
+     - what subagent is doing wrong specifically
+     - what direction to take instead
+     - specific file/function to focus on next
+  2. Send via SendMessage to running subagent
+  3. Track: steer_attempts[subagent_id] += 1
+  4. If steer_attempts >= 2 AND still drifting → kill + restart with corrected prompt
+  5. If steer succeeds → reset steer_attempts[subagent_id] = 0
+
+On STALL:
+  → skip steer; go directly to ESCALATE or kill+restart
+```
+
+Steer preserves the subagent's context and momentum. Kill+restart discards all context. Always prefer steer for drift; kill+restart for stall.
+
+---
+
+## Contract source
+
+At the start of each loop, the agent reads `.sdlc/state/active-prompt.json` (written by `/prompt-gen` v4) and treats `spec_xml` as a CONTRACT. If the loop starts to deviate from the scope declared in `<phases>` → STOP and require regenerating the spec, do not improvise. This prevents the typical "loop derive" when there is no binding contract.
 
 ---
 

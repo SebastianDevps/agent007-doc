@@ -1,14 +1,18 @@
 ---
-title: "/deep-research"
-description: "Systematic 4-phase research methodology for technical and product questions."
+title: "deep-research"
+description: "Systematic 4-phase research methodology: Scope → Gather → Synthesize → Deliver."
 ---
+
+<Note>
+  In v6, `/deep-research` migrated from a command to a skill. Invoke via `Skill('deep-research')` — the path on disk is `.claude/skills/workflow-utils/deep-research.md`. Single source of truth, no command wrapper.
+</Note>
 
 ## Overview
 
-`/deep-research` applies a structured 4-phase methodology to answer technical or product questions. It cross-references multiple authoritative sources, assigns confidence levels, and surfaces gaps before making recommendations.
+The `deep-research` skill applies a structured 4-phase methodology to answer technical or product questions. It cross-references multiple authoritative sources, assigns confidence levels, and surfaces gaps before making recommendations.
 
 ```
-/deep-research "question or topic"
+Skill('deep-research') topic="<research question>"
 ```
 
 ---

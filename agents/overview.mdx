@@ -1,73 +1,126 @@
 ---
 title: "Agents Overview"
-description: "8 expert agents with principle of least privilege — each specialized for a domain, each with only the tools it needs."
+description: "8 expert agents — each with a tool profile, trigger keywords, and explicit handoff rules."
 ---
 
 ## Overview
 
-Agent007 has 8 expert agents. Each agent has:
+Agent007 ships 8 expert agents. Each one declares:
 
-- A specific **model** (opus for deep reasoning, sonnet for speed)
-- **Tool restrictions** enforcing principle of least privilege
-- **Domain expertise** with a detailed methodology
-- An **output protocol** (PLANNER / CONSULTANT / REVIEWER modes)
+- A **model** tier (opus / sonnet) — chosen for the work, not the agent
+- A **tool profile** (`minimal` / `coding` / `full`) enforced by `tool-policy-guard` at runtime
+- **Trigger keywords** for auto-routing
+- **Handoff rules** to other agents and to the human
+- **`done_when`** + **`forbidden`** clauses checked by the orchestrator
 
-Agents are never called directly by users — they are dispatched by the orchestrator or invoked by `/consult`. The routing is automatic based on keyword matching and task type.
-
----
-
-## Agent Roster
-
-| Agent | Model | Specialty | Tools |
-|-------|-------|-----------|-------|
-| [`backend-db-expert`](/agents/backend-db-expert) | opus | NestJS, TypeORM, PostgreSQL, Redis, APIs, architecture | Read, Grep, Glob |
-| [`code-reviewer`](/agents/code-reviewer) | sonnet | Code quality, CRITICAL/HIGH/MEDIUM/LOW taxonomy, 80% confidence filter | Read, Grep, Glob, Bash |
-| [`frontend-ux-expert`](/agents/frontend-ux-expert) | sonnet | React, Next.js, Tailwind, WCAG, performance, design systems | Read, Grep, Glob |
-| [`loop-operator`](/agents/loop-operator) | sonnet | Ralph loop lifecycle, stall detection, cost drift, human escalation | Read, Grep, Glob, Bash, Edit |
-| [`platform-expert`](/agents/platform-expert) | sonnet | Docker, GitHub Actions, Kubernetes, Jest/Playwright, CI/CD, monitoring | Read, Grep, Glob, Bash |
-| [`product-expert`](/agents/product-expert) | opus | RICE, user stories, MVP, roadmap, AARRR, discovery | Read, Grep, Glob |
-| [`refactor-cleaner`](/agents/refactor-cleaner) | sonnet | Dead code removal (knip/depcheck/ts-prune), risk-tiered batch deletion | Read, Write, Edit, Bash, Grep, Glob |
-| [`security-expert`](/agents/security-expert) | opus | OWASP Top 10, JWT, OAuth, GDPR, SOC2, threat modeling | Read, Write, Edit, Bash, Grep, Glob |
+Agents are dispatched by `/dev`, `/consult`, and `/orchestrate`. They are not called directly by the user.
 
 ---
 
-## Principle of Least Privilege
+## Agent roster
 
-Each agent has only the tools required for its job:
+| Agent | Model | Profile | Specialty |
+|---|---|---|---|
+| [`backend-db-expert`](/agents/backend-db-expert) | opus | minimal (read-only) | NestJS, TypeORM, PostgreSQL, Redis, APIs, distributed systems |
+| [`frontend-ux-expert`](/agents/frontend-ux-expert) | sonnet | coding (BUILDER) | React, Next.js, Tailwind, GSAP, shadcn, Spline, barba, iOS HIG |
+| [`code-reviewer`](/agents/code-reviewer) | sonnet | minimal + Bash (read-only) | Code quality, CRITICAL/HIGH/MEDIUM/LOW taxonomy, 80% confidence filter |
+| [`security-expert`](/agents/security-expert) | opus | coding | OWASP Top 10, JWT, OAuth, GDPR, SOC2, threat modeling |
+| [`platform-expert`](/agents/platform-expert) | sonnet | minimal + Bash | Docker, GitHub Actions, Kubernetes, Jest/Vitest/Playwright, CI/CD, monitoring |
+| [`product-expert`](/agents/product-expert) | opus | minimal (read-only) | RICE, user stories, MVP, roadmap, AARRR, discovery |
+| [`loop-operator`](/agents/loop-operator) | sonnet | full | Ralph loop lifecycle, stall detection, Steer Pattern, cost drift, human escalation |
+| [`refactor-cleaner`](/agents/refactor-cleaner) | sonnet | coding | Dead code removal (`knip` / `depcheck` / `ts-prune`), risk-tiered batch deletion |
 
-| Access Level | Agents | Rationale |
+<Note>
+  `architect` and `performance-optimizer` were removed in v6. Use `Skill('architecture-patterns')` and `Skill('performance-profiling')` directly.
+</Note>
+
+---
+
+## Tool profiles (least privilege)
+
+`tool-policy-guard` (PreToolUse/Write|Edit) enforces these at runtime — a misrouted agent is blocked before the tool call lands.
+
+| Profile | Tools | Agents |
 |---|---|---|
-| Read-only (Read, Grep, Glob) | backend-db-expert, frontend-ux-expert, product-expert | Analysis and consulting only |
-| Read + Bash | platform-expert, loop-operator | Need to run commands (tests, scripts) |
-| Full write access | security-expert, refactor-cleaner | Must modify files to remediate issues |
-| Read + Bash (no Write) | code-reviewer | Reviews without modifying — clean separation |
+| `minimal` | Read, Glob, Grep | product-expert, security-expert (consulting), code-reviewer (+ Bash for diff stats) |
+| `coding` | + Write, Edit, Bash, Agent | backend-db-expert (read-only in v6), frontend-ux-expert (+ WebFetch + WebSearch), platform-expert, refactor-cleaner |
+| `full` | everything | loop-operator |
+
+<Warning>
+  `backend-db-expert` is intentionally read-only. It analyzes, plans, and consults — but a separate agent (or the orchestrator) writes the code. This preserves the architectural review/implementation split.
+</Warning>
 
 ---
 
-## Output Modes
+## Modes
 
-Every agent has 3 output modes:
+Every agent supports up to 4 output modes. Default depends on the agent:
 
 | Mode | When | Format |
-|------|------|--------|
-| **PLANNER** | Task breakdown needed | Phased implementation plan with file paths, durations, verify commands |
-| **CONSULTANT** | Expert advice needed | Recommendation → trade-offs → concrete next steps |
-| **REVIEWER** | Quality gate | PASS/FAIL per category with file:line evidence → verdict |
+|---|---|---|
+| `BUILDER` | Default for `frontend-ux-expert` | Writes code (Write/Edit), runs verifications, never just reviews |
+| `PLANNER` | Task breakdown needed | Phased plan with file paths, 2-5 min tasks, verify command per phase |
+| `CONSULTANT` | Expert advice ("should I", "compare") | Recommendation + trade-offs + concrete next steps |
+| `REVIEWER` | Quality gate | PASS/FAIL per category with file:line evidence; verdict APPROVED / NEEDS FIXES |
 
 ---
 
-## Auto-Routing Keywords
+## Auto-routing
 
-Agents are auto-selected based on keyword matching. The agent with the most matches wins. On tie, or with `--experts X,Y`, both respond.
+Agents are auto-selected by keyword match. The agent with the most matches wins. On a tie or with `--experts X,Y`, both respond sequentially with labeled sections.
 
 ```
-/consult "question"    → auto-selects based on keywords
-/dev "task"           → dispatches via subagent-driven-development
-/orchestrate workflow → assigns agents per workflow step
+/consult "question"          → keyword match → expert
+/dev "task"                  → SDD or trivial → subagent dispatch
+/orchestrate <workflow>      → fixed chain per workflow type
 ```
+
+The full keyword tables live in each agent doc.
 
 ---
 
-## Adding a New Agent
+## Handoff rules
 
-New agents are defined as YAML-frontmatter + XML markdown in `.claude/agents/<name>.md`. Required sections: `<identity>`, `<expertise>`, `<constraints>`, `<methodology>`, `<output_protocol>`. Register in `agents/INDEX.md` and add to CLAUDE.md routing table.
+Each agent declares explicit handoffs. These are not suggestions — they are the coordination protocol for `/orchestrate`:
+
+| From | To | When |
+|---|---|---|
+| backend-db-expert | security-expert | Auth or encryption question |
+| backend-db-expert | platform-expert | Deployment or infra question |
+| frontend-ux-expert | backend-db-expert | API contract / backend shape |
+| frontend-ux-expert | security-expert | Auth or session handling on client |
+| code-reviewer | security-expert | OWASP or vulnerability found |
+| security-expert | human | CRITICAL vulnerability OR compliance audit (GDPR/SOC2) |
+| loop-operator | human | 3 consecutive identical errors OR token budget > 80% |
+
+In `/orchestrate`, every handoff produces a `HANDOFF.md` document at `.sdlc/handoffs/<workflow-id>/<agent>-handoff.md`. The next agent reads it before starting.
+
+---
+
+## Adding a new agent
+
+Define the agent in `.claude/agents/<name>.md`:
+
+```yaml
+---
+name: my-agent
+description: "One-line elevator pitch."
+model: sonnet | opus
+tools: [Read, Grep, Glob, ...]
+triggers: [keyword1, keyword2, ...]
+skills: [skill1, skill2]
+handoffs:
+  - to: other-agent
+    when: "concrete condition"
+done_when:
+  - "Observable success criterion 1"
+forbidden:
+  - "Anti-pattern that must never happen"
+---
+
+# Agent Name
+
+Identity paragraph...
+```
+
+Then register in `.claude/agents/INDEX.md` and add trigger keywords to the routing tables in `CLAUDE.md`.

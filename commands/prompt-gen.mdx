@@ -1,124 +1,257 @@
 ---
 title: "/prompt-gen"
-description: "Convert /consult expert recommendations into precision prompts using the Anthropic 10-component framework."
+description: "Convert vague intent into a canonical Anthropic XML prompt-spec. Persists to .sdlc/state/active-prompt.json so subagent-context.py injects it into every delegation."
 ---
 
 ## Overview
 
-`/prompt-gen` takes the context from a recent `/consult` and converts it into a structured, executable prompt. Without this step, `/dev` must rediscover all expert context. With it, Claude starts with all decisions pre-loaded.
+`/prompt-gen` v4 converts vague intent into a canonical Anthropic-conventions XML prompt-spec. The principle: **velocidad de entrega nunca es un criterio de éxito.** A prompt without an investigation phase is incomplete. The skill enforces investigate → plan → build, and persists the spec atomically so every delegated subagent inherits the same contract.
 
 ```
-/prompt-gen "[objective]"
-/prompt-gen "[objective]" --target dev
-/prompt-gen "[objective]" --target subagent
-/prompt-gen "[objective]" --target session
+/prompt-gen "[vague or precise objective]"
+/prompt-gen "[objective]" --target dev|subagent|session
 /prompt-gen "[objective]" --save
+/prompt-gen "[objective]" --improve   ← audits and improves an existing prompt
+/prompt-gen "[objective]" --quick     ← skips interview if context is already clear
 ```
 
 ---
 
-## When to Use
+## Routing
 
-After `/consult`, you have expert context as conversational text. `/prompt-gen` compresses it into a structured prompt with the 10 Anthropic framework components. Use it when:
-
-- Continuing in the same session with `/dev`
-- Dispatching a subagent in `subagent-driven-development`
-- Starting a new session with a different model
-
-`/prompt-gen` is automatically offered at the end of every `/consult` that contains actionable technical recommendations.
+| Source | Signal | Action |
+|---|---|---|
+| Recent `/consult` | Prior conversation with an expert agent | Step 1A — extract decisions |
+| `--improve` flag | User pastes an existing prompt | Step 1B — audit vs checklist |
+| Direct intent | User describes what they want | Step 1C — quality interview |
 
 ---
 
-## Targets
+## Quality interview (Step 1C — the most important step)
 
-| Flag | Output format | When |
-|------|--------------|------|
-| `--target dev` _(default)_ | Compressed instruction for `/dev` (≤ 250 words) | Continue in same session |
-| `--target subagent` | Full XML for subagent dispatch | `subagent-driven-development` needs pre-loaded context |
-| `--target session` | Standalone XML system prompt | New session / different model / external use |
+Maximum 5 questions, one at a time. Stop when context is sufficient. The questions are diagnostic, not a form.
 
-Before generating, shows:
-```
-🎯 prompt-gen → [TARGET]
-Expert origin: [agent] | Domain: [stack] | Objective: [intent]
+<Steps>
+  <Step title="The real objective">
+    Reframe what the user said in terms of result, not task. Successful result: product that works, or product that impresses?
+  </Step>
+  <Step title="Quality referent (critical)">
+    Is there a website / app / demo / product that says "I want something this good or better"? URL, name, company.
+
+    Without specific referent: Apple.com level / Awwwards level / functional but simple?
+
+    The answer determines the **Quality Tier**.
+  </Step>
+  <Step title="The anti-fail">
+    What would make you, looking at the result, say "this doesn't work, it's mediocre"?
+  </Step>
+  <Step title="Existing constraints">
+    Decisions already taken that the agent must NOT re-evaluate? (stack, design, architecture, dependencies, time, budget)
+  </Step>
+  <Step title="Verification (only if context still ambiguous)">
+    How will you know the result is complete? Is there a command, screen, or behavior that confirms it?
+  </Step>
+</Steps>
+
+Stop early when:
+- The quality referent is concrete
+- The anti-fail is defined
+- The stack and constraints are known
+- Completion criteria are verifiable
+
+---
+
+## Quality tiers
+
+| Tier | Signal | What gets added |
+|---|---|---|
+| **Minimal** | Simple technical task, single file, no aesthetic | No visual modifier |
+| **Standard** | New feature, multiple files | "Produce a complete, production-ready solution." |
+| **Thorough** | Architecture, security, multi-module | "Go beyond the basics. Cover edge cases and observability. A senior engineer will review this." |
+| **Premium** | Concrete visual referent (Apple, Awwwards, GSAP demos) | Premium quality modifier (see below) |
+
+### Premium quality modifier
+
+When tier is Premium, the generated prompt MUST include:
+
+```xml
+<quality_standard>
+  Referente: [URL or description]
+
+  El resultado debe alcanzar o superar el nivel visual/funcional de ese referente.
+  Un resultado que compila pero se ve mediocre es un FAIL — no incompleto, FAIL.
+
+  Antes de escribir código: investigar el referente con WebFetch/WebSearch.
+  Documentar en RESEARCH.md qué hace al referente excepcional y qué técnicas usarás.
+  No avanzar a implementación sin RESEARCH.md escrito.
+
+  Quality self-check obligatorio antes de declarar COMPLETE:
+  - ¿El resultado se compara favorablemente con el referente?
+  - ¿Hay algo que con 30 minutos más se podría mejorar?
+  - ¿Le mostrarías esto a un cliente sin disculparte primero?
+
+  Si alguna respuesta es negativa: iterar antes de COMPLETE.
+</quality_standard>
 ```
 
 ---
 
-## The 10 Anthropic Components
+## Investigate → plan → build
 
-Each generated prompt includes:
-
-1. **`<identity>`** — Specific to the stack and project (not generic "expert developer")
-2. **`<task_context>`** — Expert decisions pre-loaded (model doesn't re-evaluate what the expert already decided)
-3. **`<capabilities>`** — Available tools and skills listed explicitly
-4. **`<constraints>`** — Agent007's 4 immutable rules + domain-specific constraints
-5. **`<behavioral_guidelines>`** — How to behave based on task type (implement/review/design/debug)
-6. **`<task_specific_instructions>`** — Expert recommendations converted to numbered phases with completion criteria
-7. **`<output_format>`** — Exact specification of what to produce
-8. **`<examples>`** — Only included when real examples exist from the codebase (never fabricated)
-9. **`<thinking_framework>`** — Scratchpad: list what's done, identify dependencies, verify evidence
-10. **`<meta_instructions>`** — Uncertainty handling + enforcement against contradictory inputs
-
----
-
-## Example
-
-After consulting about JWT refresh tokens:
+Every prompt of complexity Standard or higher must include these phases explicitly, in order. Never skip investigation or planning:
 
 ```
-/consult "How do I implement refresh token rotation securely in NestJS?"
+PHASE 0 — INVESTIGATION (mandatory, do not skip)
+  Before writing code:
+  - What to investigate: references, docs, existing codebase, APIs
+  - Document findings in [file]
+  - Do not advance until this phase completes
 
-/prompt-gen "implement refresh token rotation" --target dev
-```
+PHASE 1 — PLANNING
+  With Phase 0 findings:
+  - Define file structure and components
+  - Identify task dependencies
+  - Document implementation decisions
 
-Generated output:
+PHASE 2+ — IMPLEMENTATION
+  Execute plan. Per task:
+  - Implement
+  - Verify with command: [cmd]
+  - On failure: error output is the input of the next attempt
 
-```
-/dev "Implement refresh token rotation in NestJS.
-
-Technical context (security-expert):
-- Refresh token stored hashed in DB (refreshTokenHash field on User entity)
-- Delivered to client via httpOnly cookie only — never in body/localStorage (OWASP)
-- Each refresh token use invalidates the previous and issues a new one (rotation)
-- Reuse of invalidated token → revoke ALL user sessions (replay attack prevention)
-- TTL: access token 15min, refresh token 7 days
-
-Stack: NestJS + TypeORM + PostgreSQL
-
-Success criteria:
-- POST /auth/refresh issues new pair and persists new hash
-- Reuse of invalidated token returns 401 and clears refreshTokenHash
-- npm run test:e2e → happy path + replay attack + expired token all pass
-
-Constraints:
-- Never store token in plain text at any point in the flow"
+FINAL PHASE — QUALITY GATE
+  [Premium: visual quality self-check]
+  [All tiers: build + lint + technical criteria]
+  If anything fails: diagnose, fix, re-verify. No "done" without evidence.
 ```
 
 ---
 
-## Save Flag
+## Output: canonical `<prompt_spec>` envelope
 
-With `--save`, the generated prompt is saved to:
+5 mandatory components + 2 optional, following [Anthropic XML conventions](https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags).
 
+```xml
+<prompt_spec version="4" target="dev|subagent|session" tier="minimal|standard|thorough|premium">
+  <identity>...</identity>
+
+  <context>
+    <referente url="...">...</referente>
+    <stack>...</stack>
+    <decisions>
+      <decision reason="...">...</decision>
+    </decisions>
+    <anti_fail>...</anti_fail>
+    <task_input>$ARGUMENTS</task_input>
+  </context>
+
+  <constraints>
+    <constraint reason="...">...</constraint>
+  </constraints>
+
+  <phases>
+    <phase id="0" name="Investigación" gate="...">...</phase>
+    <phase id="1" name="Planificación" gate="...">...</phase>
+    <phase id="2" name="Implementación" gate="...">...</phase>
+    <phase id="final" name="Quality Gate" gate="self-check">...</phase>
+  </phases>
+
+  <success_criteria>
+    <technical><check cmd="...">exit 0</check></technical>
+    <visual>
+      <check>...</check>
+    </visual>
+  </success_criteria>
+
+  <self_check>...</self_check>
+
+  <example>
+    <input>...</input>
+    <ideal_output>...</ideal_output>
+  </example>
+</prompt_spec>
 ```
-.claude/prompts/<intent-slug>-<date>.md
-```
 
-The file includes: date, origin expert, target, the `/consult` context that generated it, and the full prompt.
+### Mandatory components
+
+1. **`<identity>`** — One-line prose: role + stack + quality referent
+2. **`<context>`** — Decisions, stack, anti-fail, plus literal `<task_input>$ARGUMENTS</task_input>`
+3. **`<constraints>`** — Each constraint has `reason=`. Imperative verbs. Code Sovereignty + Stop-Loss enforced
+4. **`<phases>`** — Each phase has a verifiable `gate=`. Imperative verbs: **Investiga / Documenta / Implementa / Verifica / Itera**
+5. **`<success_criteria>`** — Technical (with `cmd=`) + visual (auto-evaluable questions)
+
+### Optional components
+
+6. **`<example>`** — 1-3 input→ideal_output pairs (recommended for Premium)
+7. **`<self_check>`** — Verbs: "Considera / Evalúa / Razona a través de" — **NEVER use "think"** (Opus 4.7+ with extended thinking off)
+
+### Rejected verbs
+
+"considera implementar" / "podrías" / "sería bueno" / "se recomienda" / "intenta" → replaced by direct imperatives.
 
 ---
 
-## Quality Checklist
+## Persistence (always, no flag)
 
-Before delivering, `/prompt-gen` verifies:
+After generating, the spec is written to `.sdlc/state/active-prompt.json` via `os.replace()` atomic write:
 
-- `identity` has real stack + project context (not generic)
-- `task_context` includes expert decisions (model doesn't rediscover them)
-- `constraints` includes all 4 Agent007 rules + domain constraints
-- `task_specific_instructions` has phases with completion criteria
-- `thinking_framework` includes scratchpad
-- `meta_instructions` covers uncertainty handling
-- Format matches the `--target`
-- Prompt is self-contained (an engineer could follow it without asking questions)
-- No generic phrases ("implement the feature", "make sure to...")
+```json
+{
+  "version": 4,
+  "generated_at": "<ISO 8601 UTC>",
+  "target": "dev|subagent|session",
+  "tier": "minimal|standard|thorough|premium",
+  "intent_slug": "<short slug>",
+  "spec_xml": "<prompt_spec ...>...</prompt_spec>",
+  "summary_oneline": "<one-sentence goal>",
+  "ttl_seconds": 7200
+}
+```
+
+`subagent-context.py` reads this file and injects it into every delegated subagent. TTL 2h: after that, the hook ignores it (no contamination of future sessions).
+
+`--save` (optional): in addition to the state persistence, saves a readable `.md` to `.claude/prompts/<intent-slug>-YYYYMMDD.md` with metadata + interview + full spec.
+
+---
+
+## Pre-delivery quality checklist
+
+- Quality interview completed — referent and anti-fail defined
+- Correct tier detected (Minimal / Standard / Thorough / Premium)
+- Investigation phase included in the prompt (always, except Minimal)
+- Planning phase included (Standard or higher)
+- Quality gate included — technical + visual criteria per tier
+- Anti-mediocrity guardrail explicit in Premium
+- Identity with real stack and quality referent
+- Constraints with reasons — not just rules
+- Imperative verbs — no "considera", "podrías", "sería bueno"
+- Success criteria verifiable with real evidence (commands / visual checklist)
+- Self-check as mandatory final phase
+- "Velocidad no es criterio" explicit in Premium and Thorough
+- No prefill in assistant turn
+- Long documents before specific instructions
+- XML tags from canonical Anthropic set
+- `<task_input>$ARGUMENTS</task_input>` present
+- Persisted in `.sdlc/state/active-prompt.json` (atomic write)
+- The word "think" NOT used — use "considera/evalúa/razona"
+
+---
+
+## Auto-activation
+
+At the end of every `/consult` with technical recommendations:
+
+```
+Convertir estas decisiones en prompt ejecutable?
+   /prompt-gen "[objective]" para generar instrucción precisa para /dev
+```
+
+When the user describes something vaguely ("quiero una landing chida", "hazme un dashboard"):
+
+```
+Antes de generar el prompt necesito entender el nivel de calidad que buscas.
+[Question 1 of the interview]
+```
+
+**Default target**: `--target dev`
+**Saved prompts directory**: `.claude/prompts/`

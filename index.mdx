@@ -1,6 +1,6 @@
 ---
-title: "Agent007 v5.0.0"
-description: "Intelligent Development Orchestration System — 8 expert agents · 25+ active skills · 12 commands · 28 hooks · autonomous pipeline · SDD-enforced"
+title: "Agent007 v6"
+description: "Autonomous AI development orchestration for Claude Code — 8 agents · 44 skills · 26 hooks · CI gated · zero debt."
 ---
 
 <img
@@ -16,119 +16,161 @@ description: "Intelligent Development Orchestration System — 8 expert agents �
 
 ## What is Agent007?
 
-Agent007 is a Claude Code plugin that provides an **intelligent orchestration layer** on top of Claude — 8 expert agents, 25+ active skills, and 12 commands that work together to plan, implement, review, and ship code.
+Agent007 is a Claude Code plugin that turns the base CLI into an opinionated development orchestrator. It classifies every request, routes it to the right expert, runs deterministic safety hooks on every tool call, and never claims "done" without showing real evidence.
 
-Every message is **automatically classified and routed** to the right expert. Every claim is **backed by evidence**. Every task follows the **SDD Iron Law**: no production code without a defined observable scenario first.
+The plugin is designed for one thing: **shipping production code without watching the agent every second.** Routing happens at the tool level, not in a checklist the model might forget. Every visual file write is gated by an anti-convergence hook. Every commit goes through a pre-commit guard. Every long loop is bounded by a stall detector.
 
 <CardGroup cols={2}>
-  <Card
-    title="Quickstart"
-    icon="rocket"
-    href="/quickstart"
-  >
-    Get up and running in under 5 minutes
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install the marketplace and run your first command in under 5 minutes.
   </Card>
-  <Card
-    title="Commands"
-    icon="terminal"
-    href="/commands/dev"
-  >
-    12 slash commands — from /dev to /orchestrate
+  <Card title="Commands" icon="terminal" href="/commands/dev">
+    8 entry commands — `/dev`, `/consult`, `/orchestrate`, `/ralph-loop` and more.
   </Card>
-  <Card
-    title="Agents"
-    icon="users"
-    href="/agents/overview"
-  >
-    8 expert agents with tool policy enforcement
+  <Card title="Agents" icon="users" href="/agents/overview">
+    8 expert agents, each with its own tool profile and handoff rules.
   </Card>
-  <Card
-    title="Changelog"
-    icon="clock"
-    href="/changelog"
-  >
-    What's new in v5.0.0
+  <Card title="Changelog" icon="clock" href="/changelog">
+    What's new in v6 — frontend builder, CI gate, lifecycle scripts.
   </Card>
 </CardGroup>
 
 ---
 
-## Ecosystem at a Glance
+## Ecosystem at a glance
 
-| Category | Count | Details |
-|----------|-------|---------|
-| Expert agents | **8** | backend-db, code-reviewer, frontend-ux, loop-operator, platform, product, refactor-cleaner, security |
-| Skills (invokable) | **19** | pipeline + domain + workflow-utils |
-| Skills (auto-injected) | **6** | core + orchestration |
-| Skills (total active) | **25+** | — |
-| Commands | **12** | /dev, /consult, /ralph-loop, /orchestrate, /prompt-gen, /deep-research, /commit, /pull-request, /security-scan, /instinct-status, /evolve, /changelog |
-| Hooks | **28** | 7 new OpenClaw primitives + 21 existing quality gates |
+| Category | Count | Notes |
+|---|---|---|
+| Expert agents | **8** | backend-db, frontend-ux (BUILDER), code-reviewer, security, platform, product, loop-operator, refactor-cleaner |
+| Skills (invokable + auto) | **44** | core, pipeline, orchestration, domain, quality-gates, workflow-utils |
+| Hooks | **26** | safety guards + OpenClaw primitives + v6 frontend gate + telemetry |
+| Lifecycle scripts | **6** | verify, install, uninstall, sync, test-hooks, waste-report |
 | Rules | **5** | typescript, security, git-workflow, patterns, coding-style |
+| Hook regression tests | **13** | fixture-based, run on every PR via `.github/workflows/plugin-validate.yml` |
 
 ---
 
-## OpenClaw Primitives
+## What's new in v6
 
-7 new safety and orchestration hooks that run automatically on every session:
-
-| Hook | Trigger | What it does |
-|------|---------|--------------|
-| `tool-loop-detection` | PostToolUse/all | SHA-256 fingerprint sliding window. Warning at 10 identical calls, circuit breaker at 30. |
-| `context-engine` | PreToolUse/Agent + Stop | Estimates token budget before each subagent spawn. Writes `.sdlc/state/context-budget.json`. Blocks spawn if > 80%. |
-| `mutation-guard` | PreToolUse/Write\|Edit\|Bash | Fingerprints writes by content hash. Silently skips exact duplicate operations. |
-| `memory-decay` | SessionStart | Marks MEMORY.md entries stale at ~30 days, archives at ~60 days using exponential decay. |
-| `tool-policy-guard` | PreToolUse/Write\|Edit | Enforces `tool_profile` per active agent: `minimal` / `coding` / `full`. |
-| `provider-rotation` | PreToolUse/Agent | Tracks model failures with exponential cooldown. Recommends failover: opus → sonnet → haiku. |
-| `transcript-policy` | SubagentStart | Injects model-tier directive: haiku gets concise mode, opus gets deep-analysis mode, sonnet is unchanged. |
+<CardGroup cols={2}>
+  <Card title="Frontend agent ejecuta">
+    Antes solo validaba. Ahora `frontend-ux-expert` escribe código (Write/Edit/Bash + WebFetch/WebSearch). 4 modos: BUILDER (default) · PLANNER · CONSULTANT · REVIEWER.
+  </Card>
+  <Card title="Anti-convergence inevitable">
+    `frontend-discovery-gate` (PreToolUse) bloquea writes en `.tsx/.jsx/.css/.html/.svelte/.vue/.astro` sin un discovery output reciente (TTL 30 min). Está en la herramienta, no depende del LLM.
+  </Card>
+  <Card title="8 skills nuevas accionables">
+    `discovery-before-code`, `shadcn-component-install`, `a11y-contrast-check` (script Node WCAG), `design-tokens-extract`, `design-system-doc`, `page-transitions-barba`, `ios-hig-mobile`, `spline-3d-embed`.
+  </Card>
+  <Card title="CI propia + debt register vacío">
+    6-job GitHub workflow valida settings.json, frontmatter, hook syntax, line caps, references. `.line-cap-exemptions` está vacío: cero archivos eager > 200 líneas.
+  </Card>
+  <Card title="Eager-loaded reducido 84%">
+    De ~7300 → 1195 líneas. Auto-inject overhead reducido 81% (1239 → 237 líneas por sesión).
+  </Card>
+  <Card title="Telemetría + recovery">
+    `context-tick.py` (SessionStart + PostToolUse + Stop) escribe `.sdlc/state/context-budget.jsonl`. `session-recover.py` emite resumen de sesión previa si última actividad < 4h. `waste-report.py` audita top files, hit rate, p95.
+  </Card>
+</CardGroup>
 
 ---
 
-## Routing Intelligence
-
-Every message is classified before any action is taken:
+## Frontend builder gate (the v6 anti-convergence story)
 
 ```
-🎯 [TYPE] → [ROUTE] | Risk: [low|medium|high|critical]
+.claude/state/discovery-output.json
+ ↑ written by Skill('discovery-before-code')
+ ↓ read by frontend-discovery-gate hook (PreToolUse/Edit|Write)
+
+If output is missing or older than 30 minutes → write to .tsx/.css is BLOCKED.
 ```
 
-| Message type | Signal words | Route |
+The skill enforces 4 steps before any visual code:
+
+<Steps>
+  <Step title="Referent fetch">
+    A real URL (not "modern dashboard"). Documented with `WebFetch` and recorded in the discovery output.
+  </Step>
+  <Step title="Pick 1 of 11 extreme styles">
+    brutalist · cyberpunk · swiss · memphis · neumorphism · glassmorphism · skeuomorphic · y2k · editorial · monospace-terminal · risograph. Anti-convergence by construction.
+  </Step>
+  <Step title="States table">
+    empty · loading · error · success · edge — designed before any component is written.
+  </Step>
+  <Step title="Tokens declared">
+    ≤5 colors, ≤2 fonts. Then executable skills take over: `shadcn-component-install`, `design-tokens-extract`, `a11y-contrast-check`, `page-transitions-barba`, `ios-hig-mobile`, `spline-3d-embed`, `design-system-doc`.
+  </Step>
+</Steps>
+
+---
+
+## Routing intelligence
+
+Every message is classified before any action. The orchestrator announces:
+
+```
+🎯 [target] | Risk: [low|medium|high|critical]
+```
+
+| Intent | Signal words | Route |
 |---|---|---|
 | feature | add, implement, create, build | `/dev` |
-| bug | fix, error, broken, not working | systematic-debugging → SDD |
+| bug | fix, error, broken, not working | `systematic-debugging` skill |
 | consult | should I, recommend, best practice | `/consult` |
-| refactor | refactor, clean up, optimize | `sop-reverse` → plan |
-| review | code review, audit, check quality | `code-reviewer` |
-| research | investigate, explore, compare | `/deep-research` |
+| refactor | refactor, clean up, optimize | `sop-reverse` skill |
+| review | code review, audit, check quality | `code-reviewer` agent |
+| research | investigate, explore, compare | `/deep-research` skill |
 | ralph | loop until, autonomous, until tests pass | `loop-operator` → `/ralph-loop` |
-| cleanup | dead code, unused, depcheck | `refactor-cleaner` |
+| cleanup | dead code, unused, depcheck | `refactor-cleaner` agent |
+
+High/critical risk (auth, payments, encryption, migrations, breaking changes) requires explicit "yes" before acting.
 
 ---
 
-## Immutable Rules
+## Hard rules
 
-These rules are always active and cannot be overridden:
+These are enforced by hooks, not by prompt instructions:
 
-- **NEVER** claim "done" without `Skill('verify')` passing with evidence
+- **NEVER** claim "done" without `Skill('verify')` showing actual command output (`[cmd] → [output]`)
 - **NEVER** write production code before defining an observable scenario (SDD Iron Law)
-- **NEVER** modify scenarios to make code pass — scenarios are external holdout sets
-- **NEVER** assume user approval — require explicit confirmation
+- **NEVER** modify test scenarios to make code pass — scenarios are external holdout sets
+- **NEVER** commit `.env` files, hardcoded secrets, or use `git --no-verify`
+- **NEVER** assume user approval for high-risk work — explicit "yes" required
 - **ALWAYS** read a file before editing it
-- **ALWAYS** show routing decision before any skill invocation
+- **ALWAYS** show routing decision before any agent or skill invocation
 
 ---
 
-## Pipeline Map
+## Pipeline map
 
 ```
-simple  → generate → verify → done
-          On FAIL: retry with feedback (max 3). On 3× FAIL: escalate.
-
-medium  → plan → [generate → verify] → code-reviewer → branch-finish
-
-complex → brainstorming → git-worktree → plan
-          → [generate → verify] + ralph-loop per task
-          → human gate → branch-finish
-
-refactor → sop-reverse → plan → medium pipeline
-bug      → systematic-debugging → generate → verify
+Trivial      → Skill('generate') → Skill('verify') → done
+Substantial  → /sdd-new → proposal → spec → design → tasks → apply → verify → archive
+Bug          → systematic-debugging → reproduce → fix → verify
+Refactor     → sop-reverse → plan → SDD pipeline
+Visual code  → discovery-before-code (BLOCKING gate) → tokens → component
 ```
+
+---
+
+## Honest comparison
+
+| Capability | Vanilla Claude Code | Agent007 v6 |
+|---|:---:|:---:|
+| Complexity-based routing (trivial vs SDD) | — | yes (`/dev`) |
+| Loop until verified complete | — | yes (Ralph) |
+| Specialized agents by domain | — | yes (8 experts) |
+| Parallel subagent execution (Yield Pattern) | — | yes |
+| Mid-flight agent guidance (Steer Pattern) | — | yes |
+| Hallucinated path block | — | yes (`path-existence-guard`) |
+| Anti-convergence enforcement (frontend) | — | yes (`frontend-discovery-gate`) |
+| Token loop detection + circuit breaker | — | yes |
+| Memory temporal decay | — | yes (`memory-decay`) |
+| Plugin self-CI (frontmatter, line caps, refs) | — | yes (6-job workflow) |
+| Hook regression tests | — | yes (13 fixtures) |
+| Persistent telemetry + waste audit | — | yes (`context-tick` + `waste-report`) |
+| Cross-session recovery | — | yes (`session-recover`) |
+
+<Note>
+  Agent007 is MIT-licensed. Source: [github.com/SebastianDevps/agent007](https://github.com/SebastianDevps/agent007). All hooks are Python 3 — no bash dependencies, runs on macOS, Linux, and Windows.
+</Note>

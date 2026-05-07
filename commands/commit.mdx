@@ -1,14 +1,18 @@
 ---
-title: "/commit"
-description: "Generate pipe-delimited commits following the Agent007 standard format."
+title: "commit"
+description: "Generate pipe-delimited commits in the Agent007 standard format. Strict — no Co-Authored-By, no tool attribution, no emojis."
 ---
+
+<Note>
+  In v6, `/commit` migrated from a command to a skill. Invoke via `Skill('commit')` — the path on disk is `.claude/skills/workflow-utils/commit.md`. Single source of truth, no command wrapper.
+</Note>
 
 ## Overview
 
-`/commit` generates commits in the Agent007 pipe-delimited format. It surveys changes, stages the right files, writes the commit message, and verifies the result.
+The `commit` skill generates commits in the Agent007 pipe-delimited format. It surveys changes, stages files by name, writes the commit, and verifies the result.
 
 ```
-/commit
+Skill('commit')
 ```
 
 No arguments needed — `/commit` reads the current git state and guides you through the process.
@@ -28,17 +32,22 @@ Tipo|IdTarea|YYYYMMDD|Descripción breve
 | `YYYYMMDD` | Commit date — runs `date +%Y%m%d` automatically |
 | `Descripción` | Action in English, imperative mood, max 60 characters |
 
-### Valid Types
+### Valid types
 
 | Type | When to use |
 |------|-------------|
 | `feat` | New functionality |
 | `fix` | Bug correction |
-| `refactor` | Code restructuring / improvement |
+| `refactor` | Restructure without behavior change |
 | `review` | Code review adjustments |
-| `test` | Tests implementation or adjustment |
-| `docs` | Documentation changes |
-| `chore` | Maintenance or minor tasks |
+| `test` | Tests added or adjusted |
+| `docs` | Documentation only |
+| `chore` | Maintenance, minor tasks |
+| `perf` | Performance improvement |
+| `ci` | CI/CD pipeline changes |
+| `build` | Build system changes |
+| `revert` | Revert previous commit |
+| `wip` | Work-in-progress (avoid in main branches) |
 
 ---
 

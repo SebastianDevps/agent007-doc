@@ -1,18 +1,19 @@
 ---
 title: "Quickstart"
-description: "Get Agent007 v5.0.0 running in your Claude Code project in under 5 minutes"
+description: "Install Agent007 v6 in a Claude Code project and run your first command in under 5 minutes."
 ---
 
 ## Prerequisites
 
 - [Claude Code](https://claude.ai/code) installed (CLI, desktop app, or IDE extension)
-- A project directory with a `package.json` or any codebase
+- A project directory (any codebase — language-agnostic)
+- Python 3 available on PATH (all hooks are Python; no bash deps)
 
 ---
 
 ## Installation
 
-Agent007 is available as a Claude Code plugin via the marketplace.
+Agent007 ships through the official Claude Code marketplace.
 
 <Steps>
   <Step title="Add the marketplace">
@@ -26,38 +27,43 @@ Agent007 is available as a Claude Code plugin via the marketplace.
     /plugin install agent007@agent007-marketplace
     ```
 
-    This drops a `.claude/` directory into your project root with:
+    This drops a `.claude/` directory into your project root:
 
     ```
     your-project/
     ├── .claude/
-    │   ├── CLAUDE.md          ← orchestrator instructions (auto-loaded)
+    │   ├── CLAUDE.md          ← orchestrator identity (auto-loaded)
+    │   ├── CONTEXT.md         ← project navigation map (auto-loaded)
+    │   ├── settings.json      ← hook registration + permissions
     │   ├── agents/            ← 8 expert agents
-    │   ├── commands/          ← 12 slash commands
-    │   ├── skills/            ← 25+ active skills
-    │   ├── hooks/             ← 28 hooks (21 quality gates + 7 OpenClaw primitives)
+    │   ├── commands/          ← 8 entry commands
+    │   ├── skills/            ← 44 skills (core, pipeline, domain, etc.)
+    │   ├── hooks/             ← 26 hooks (Python 3)
     │   ├── rules/             ← 5 coding rule files
-    │   ├── scripts/           ← wave-scheduler.js + utilities
-    │   └── settings.json      ← hook registration + permissions
+    │   └── scripts/
+    │       ├── lifecycle/     ← verify, install, uninstall, sync, test, waste
+    │       ├── instinct-engine.js
+    │       ├── security-scan.js
+    │       └── wave-scheduler.js
     └── your-project-files...
     ```
   </Step>
 
   <Step title="Open Claude Code">
-    Start a new session in your project directory. Claude Code automatically loads `CLAUDE.md` and all context imports.
+    Start a session in your project. Claude Code automatically loads `CLAUDE.md` + `CONTEXT.md`.
 
-    You'll see the routing classification on your first task message:
+    On your first message you'll see the routing classification:
     ```
-    🎯 feature → /dev | Risk: low
+    🎯 feature | Risk: low
     ```
   </Step>
 
   <Step title="Run your first command">
     ```
-    /dev "Add a health check endpoint to the API"
+    /dev "Add a /health endpoint returning service uptime"
     ```
 
-    Agent007 will classify the task, show the routing decision, generate a plan, dispatch the right expert subagent, and verify output before claiming done.
+    Agent007 classifies the task, routes it (trivial → inline, substantial → SDD), dispatches the right expert, and verifies output before claiming done.
   </Step>
 </Steps>
 
@@ -67,9 +73,19 @@ Agent007 is available as a Claude Code plugin via the marketplace.
 /plugin update agent007
 ```
 
+### Verifying the install
+
+From the project root, run the lifecycle verification script:
+
+```bash
+.claude/scripts/lifecycle/verify.sh
+```
+
+5 checks (+ optional 6th: hook regression tests). Mirror of the CI gate that runs on every plugin PR.
+
 ---
 
-## Your First 3 Commands
+## Your first 3 commands
 
 ### 1. Ask an expert
 
@@ -77,15 +93,15 @@ Agent007 is available as a Claude Code plugin via the marketplace.
 /consult "Should I use cursor-based or offset pagination for 10M records?"
 ```
 
-Auto-routes to `backend-db-expert` (opus model). Returns a structured recommendation with trade-offs and a concrete implementation plan.
+Auto-routes to `backend-db-expert` (opus model). Returns a structured recommendation with trade-offs and an implementation plan. Optional `--quick` (≤25 lines) or `--deep` (≤120 lines, full skills).
 
-### 2. Run a feature autonomously
+### 2. Run a task autonomously
 
 ```
 /dev "Add email verification to the registration flow" --ralph --verify "npm test"
 ```
 
-Full pipeline: plan → subagent execution → code-reviewer gate → loop until `npm test` passes.
+Full pipeline: classify → SDD if substantial → subagent execution → loop until `npm test` passes or `loop-operator` escalates.
 
 ### 3. Orchestrate a multi-agent workflow
 
@@ -93,70 +109,68 @@ Full pipeline: plan → subagent execution → code-reviewer gate → loop until
 /orchestrate feature "Build the notifications module"
 ```
 
-Runs the full chain: `brainstorm → plan → SDD → code-reviewer → security-expert → branch-finish`. Each agent passes a structured HANDOFF document to the next.
+Runs the chain: `brainstorm → plan → SDD → code-reviewer → security-expert → branch-finish`. Each agent emits a structured `HANDOFF.md` to the next. Final report ships SHIP / NEEDS WORK / BLOCKED with a verdict.
 
 ---
 
-## Key Concepts
+## Key concepts
 
 <AccordionGroup>
-  <Accordion title="SDD Iron Law">
-    **No production code before a defined observable scenario.**
+  <Accordion title="Trivial vs Substantial pipeline">
+    The orchestrator decides once per request:
 
-    Scenarios live in `docs/scenarios/` (external, immutable). Tests live in the code (internal). Claude can modify tests. It cannot modify scenarios. This prevents reward-hacking where an AI "passes" tests by deleting them.
+    - **Trivial** (single file, no new behavior, no public surface change) → `Skill('generate')` → `Skill('verify')`
+    - **Substantial** (new behavior, multi-file, public surface, refactor, OR any high/critical risk) → `/sdd-new <change>` (proposal → spec → design → tasks → apply → verify → archive)
+
+    When in doubt, choose SDD. Over-planning a small change costs less than under-planning a substantial one.
   </Accordion>
 
   <Accordion title="Evidence-gated verification">
     Agent007 never claims "done" without running the verification command and showing the actual output:
 
     ```
-    ✅ Verified: npm test → 47 passed, 0 failed (2.3s)
+    Verified: npm test → 47 passed, 0 failed (2.3s)
     ```
 
-    Phrases like "should work", "probably", "I assume" are banned and replaced with evidence.
+    Phrases like "should work", "probably", "I assume" are blocked by `core/banned-phrases` and replaced with evidence. See [skills/core/banned-phrases.md] for the exact list.
   </Accordion>
 
-  <Accordion title="Ralph Loop">
-    The Ralph Loop is an autonomous iteration engine. It runs your task in a loop until the `<promise>COMPLETE</promise>` signal is detected.
+  <Accordion title="Frontend anti-convergence gate">
+    The `frontend-discovery-gate` hook (PreToolUse/Edit|Write) blocks any write to `.tsx/.jsx/.css/.html/.svelte/.vue/.astro` unless `.claude/state/discovery-output.json` exists and is less than 30 minutes old.
+
+    To unlock, run `Skill('discovery-before-code')` first: referent fetch → 1 of 11 styles → states table → tokens. The gate is in the tool layer — the LLM cannot route around it.
+  </Accordion>
+
+  <Accordion title="Ralph loop">
+    Autonomous iteration engine. Runs until the `<promise>COMPLETE</promise>` signal is detected.
 
     ```
     /ralph-loop "Fix all TypeScript errors" --max-iterations 10 --verify "npx tsc --noEmit"
     ```
 
-    The `loop-operator` agent monitors for stalls (same error × 3), cost drift (> 2× baseline), and context budget (> 80%). It escalates with A/B/C recovery options instead of silently looping forever.
+    The `loop-operator` agent watches for stalls (same error × 3), cost drift (> 2× baseline), and context budget (> 80%). It escalates with A/B/C recovery options instead of looping silently.
   </Accordion>
 
-  <Accordion title="Human checkpoints">
-    5 checkpoints exist where you decide before anything advances:
+  <Accordion title="Tool policy per agent (least privilege)">
+    Each agent only sees the tools it needs:
 
-    1. **CP 0** — Classification shown before any action
-    2. **CP 1** — Plan reviewed and approved before implementation
-    3. **CP 2** — Code review per task (spec compliance + quality)
-    4. **CP 3** — Branch finish: merge / push+PR / keep / discard
-    5. **CP implicit** — Stop hook verifies completeness before session ends
+    | Profile | Agents | Tools |
+    |---|---|---|
+    | `minimal` | security-expert, product-expert, code-reviewer (+ Bash read-only) | Read, Glob, Grep |
+    | `coding` | backend-db-expert, frontend-ux-expert, platform-expert, refactor-cleaner | + Write, Edit, Bash, Agent (frontend also: WebFetch, WebSearch) |
+    | `full` | loop-operator | everything |
 
-    High/critical risk tasks (auth, payments, migrations) require explicit "yes" before proceeding.
-  </Accordion>
-
-  <Accordion title="Principle of Least Privilege">
-    Each agent has only the tools it needs:
-
-    | Agents | Tools |
-    |--------|-------|
-    | backend-db, frontend-ux, product | Read, Grep, Glob (read-only) |
-    | platform, loop-operator | + Bash |
-    | security, refactor-cleaner | + Write, Edit |
-    | code-reviewer | Read, Grep, Glob, Bash (read-only) |
+    The `tool-policy-guard` hook (PreToolUse/Write\|Edit) enforces this at runtime — a misrouted agent is blocked before it can write.
   </Accordion>
 </AccordionGroup>
 
 ---
 
-## Common Workflows
+## Common workflows
 
 ### Bug fix (direct)
 ```
-/dev "Fix null pointer error in UserService.findById()" --simple
+/dev "Fix null pointer in UserService.findById()" --simple
 ```
 
 ### New feature (medium)
@@ -164,10 +178,16 @@ Runs the full chain: `brainstorm → plan → SDD → code-reviewer → security
 /dev "Add cursor-based pagination to /users endpoint"
 ```
 
-### Complex feature (full pipeline)
+### Complex feature (full pipeline + ralph)
 ```
 /dev "Implement JWT auth with refresh token rotation" --full --ralph --max-iterations 40 --verify "npm run test:e2e"
 ```
+
+### Visual work (anti-convergence enforced)
+```
+/dev "Build a pricing page that looks like linear.app/pricing"
+```
+The discovery skill fires first. Without a recent discovery output, the hook blocks every `.tsx`/`.css` write.
 
 ### Security audit
 ```
@@ -179,23 +199,41 @@ Runs the full chain: `brainstorm → plan → SDD → code-reviewer → security
 /orchestrate cleanup "Remove all unused exports and dependencies"
 ```
 
-### Convert expert advice to executable prompt
+### Vague intent → executable prompt
 ```
 /consult "How should I structure bounded contexts for payments?"
 /prompt-gen "design payments module with bounded contexts" --target dev --save
 ```
 
+`/prompt-gen` produces a canonical Anthropic-conventions XML spec persisted at `.sdlc/state/active-prompt.json`, then `subagent-context.py` injects it into every delegated subagent.
+
 ---
 
-## Token Efficiency Tips
+## Token budget tips
 
-| Mode | Tokens | When |
-|------|--------|------|
+| Mode | Approx tokens | When |
+|---|---|---|
 | `/consult --quick` | ~2K | Direct answer, no trade-offs |
 | `/consult` | ~5K | Analysis with trade-offs |
 | `/consult --deep` | ~10K | Architecture decisions |
 | `/dev --simple` | ~3–8K | Bug, single-file change |
-| `/dev` medium | ~15–40K | Feature with 3–6 tasks |
+| `/dev` medium | ~15–40K | Feature, 3–6 tasks |
 | `/dev --full` | ~40–80K | Complex feature with brainstorm |
 
-Use `/compact` between phases (after plan, before implementation) — never in the middle of a `subagent-driven-development` run.
+Use `/compact` between phases (after plan, before implementation). **Never** in the middle of a `subagent-driven-development` run — it loses task state.
+
+---
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Commands reference" href="/commands/dev">
+    Every entry command and its flags.
+  </Card>
+  <Card title="Agent roster" href="/agents/overview">
+    Each agent, its tool profile, and handoff rules.
+  </Card>
+  <Card title="Changelog" href="/changelog">
+    What changed in v6 and why.
+  </Card>
+</CardGroup>

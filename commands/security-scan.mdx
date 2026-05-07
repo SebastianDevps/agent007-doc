@@ -72,6 +72,8 @@ Exit code: `0` for grade A/B, `1` for C–F.
 
 ---
 
-## Current Status (v5.1.1)
+## Current status (v6.0.8)
 
 `scripts/security-scan.js` achieves **Grade A** — 0 critical, 0 warnings across all 5 categories.
+
+The CI gate at `.github/workflows/plugin-validate.yml` runs the same scan on every PR, alongside hook regression tests (`.claude/scripts/lifecycle/test-hooks.py`) and frontmatter / line-cap / reference validation.

@@ -3,60 +3,111 @@ title: "Changelog"
 description: "All notable changes to Agent007. Format: Keep a Changelog."
 ---
 
-## [5.0.0] — 2026-04-02 — "OpenClaw Integration"
+## [6.0.8] — 2026-05-07 — "Frontend Builder + CI gate"
 
-> GitHub tag: `v5.0.0` · Full reset of the plugin with all prior v5.1.x features included.
+> Major refactor. Plugin now self-validates via a 6-job GitHub Actions workflow. Eager-loaded line count reduced 84%.
 
-### Added
+### Added — frontend execution
 
-**10 OpenClaw primitives** — orchestration and safety hooks inspired by OpenClaw's agent coordination patterns:
+- **`frontend-ux-expert` is now a BUILDER** — was previously read-only (Read/Grep/Glob). Now ships code by default with `[Read, Write, Edit, Glob, Grep, Bash, WebFetch, WebSearch]`. Four explicit modes:
+  - `BUILDER` (default) — writes code, not opinions
+  - `PLANNER` — wireframes + ordered tasks, no implementation
+  - `CONSULTANT` — recommendation + component API sketch, no implementation
+  - `REVIEWER` — only when user explicitly asks; never the default
+- **`frontend-discovery-gate.py`** (PreToolUse/Edit|Write) — blocks writes to `.tsx/.jsx/.css/.html/.svelte/.vue/.astro` if `.claude/state/discovery-output.json` is missing or older than 30 minutes. Anti-convergence enforced at the tool layer, not by prompt.
+- **8 new actionable frontend skills** — all gated by `discovery-before-code`:
+  - `discovery-before-code` — referent + 1 of 11 styles + states + tokens (BLOCKING)
+  - `shadcn-component-install` — info → search → docs → diff → install (mandatory dry-run)
+  - `a11y-contrast-check` — Node.js zero-deps WCAG checker, exits 1 if <4.5:1
+  - `design-tokens-extract` — WebFetch referent → write `tokens.css` / `tokens.json` (W3C format)
+  - `design-system-doc` — canonical 9-section DESIGN.md
+  - `page-transitions-barba` — barba.js + GSAP for Vite/Next Pages/Astro/plain (forbidden in Next App Router)
+  - `ios-hig-mobile` — mobile-first components following Apple HIG
+  - `spline-3d-embed` — Spline 3D scenes lazy-loaded, perf-gated, mobile-aware
 
-| Primitive | Hook event | Behavior |
-|-----------|-----------|----------|
-| `tool-loop-detection` | PostToolUse/all | SHA-256 fingerprint window (30 calls). Warning at 10, circuit breaker at 30. |
-| `context-engine` | PreToolUse/Agent + Stop | Token budget estimation before each spawn. Writes `context-budget.json`. Blocks at 80%. |
-| `mutation-guard` | PreToolUse/Write\|Edit\|Bash | Content-hash deduplication. Skips exact duplicate writes silently. |
-| `memory-decay` | SessionStart | Exponential decay (λ=0.023) on MEMORY.md entries. Stale at 30 days, archived at 60 days. |
-| `tool-policy-guard` | PreToolUse/Write\|Edit | Enforces `tool_profile: minimal/coding/full` per active agent. Fail-open if no profile detected. |
-| `provider-rotation` | PreToolUse/Agent | Cooldown tracking: 5/15/60 min. Failover chain: opus → sonnet → haiku. |
-| `transcript-policy` | SubagentStart | Model-tier directive injection: haiku → concise, opus → deep-analysis, sonnet → no change. |
-| **Yield Pattern** | SDD skill v3.0 | Parallel wave execution — multiple Agent() calls in one response = true async fork-join. |
-| **Steer Pattern** | loop-operator | Drift guidance via SendMessage before kill+restart. Max 2 steer attempts then escalate. |
-| **TaskFlow** | session.json | Optimistic locking via `revision` field. Lifecycle: idle→execute→wait→resume→finish/fail/cancel. |
+### Added — defensive guards
 
-**Wave Scheduler** — `scripts/wave-scheduler.js`: topological sort (Kahn's algorithm) for task dependency graphs. Outputs parallel execution waves from `tasks.md`.
+- **`path-existence-guard.py`** (PreToolUse/Edit|Write|Read) — blocks operations on hallucinated paths
+- **`tool-allowlist-guard.py`** (PreToolUse/Bash) — skill-level bash whitelist (shadcn-style pattern)
+- **`context-tick.py`** (SessionStart + PostToolUse + Stop) — persists telemetry to `.sdlc/state/context-budget.jsonl`
+- **`session-recover.py`** (SessionStart) — emits previous-session preamble if last activity < 4h ago
 
-**Tool policy profiles** on all 8 agents:
-- `minimal` (Read, Glob, Grep, read-only Bash): security-expert, product-expert, code-reviewer
-- `coding` (+ Write, Edit, Bash, Agent): backend-db-expert, frontend-ux-expert, platform-expert, refactor-cleaner
-- `full` (everything): loop-operator
+### Added — lifecycle and CI
+
+- **6 lifecycle scripts** in `.claude/scripts/lifecycle/`:
+  - `verify.sh` — 5 checks (+ optional 6th: hook regression tests)
+  - `install.sh /path/to/proj` — deploy to a project
+  - `uninstall.sh /path/to/proj` — remove (preserves state)
+  - `sync-to-public.sh` — sync to marketplace
+  - `test-hooks.py` — 13 fixture-based regression tests
+  - `waste-report.py` — telemetry audit: top files, hit rate, p95 tokens
+- **CI gate** at `.github/workflows/plugin-validate.yml` — same 5 checks on every PR
+- **`.line-cap-exemptions`** debt register — currently empty (zero eager-loaded files > 200 lines)
 
 ### Changed
 
-- `subagent-driven-development.md` → v3.0: Phase 1 now runs `wave-scheduler.js --json` for wave computation. Phase 2 documents `provider-rotation --mark-failure` on spawn failure.
-- `loop-operator.md`: Steer Pattern added to escalation matrix. Drift → STEER before KILL+RESTART.
-- `CLAUDE.md`: `## OpenClaw Primitives (ACTIVE)` section with CLI tools and debug guide.
-- Hook count: 17 → **28** (7 new OpenClaw + provider-rotation + transcript-policy registered).
+- **Eager-loaded total reduced 84%** (~7300 → 1195 lines). Auto-inject overhead reduced 81% (1239 → 237 lines per session).
+- **`CLAUDE.md` rewritten** as identity + core rules + routing only. Project navigation moved to `CONTEXT.md` (lazy-loaded).
+- Skill registry now uses frontmatter contracts: `allowed-tools`, `canonical-sources`, `references`, `when.keywords`.
+- Memory protocol uses 3-layer disclosure (Engram): `mem_search` → `mem_timeline` → `mem_get_observation`. ~10× token savings vs single-fetch.
+- `topic_key` convention enforced (`<domain>/<area>/<sub>`). Temporal validity via `superseded_by:{old_id}`.
+
+### Removed
+
+- `architect` agent — duplicated `architecture-patterns` skill, no handoff routes. Replacement: `Skill('architecture-patterns')`.
+- `performance-optimizer` agent — extracted into `quality-gates/performance-profiling/` skill (3 layer-specific protocols).
+
+### Ecosystem stats — v6.0.8
+
+| Category | Count |
+|---|---|
+| Expert agents | **8** |
+| Skills (active) | **44** |
+| Hooks | **26** |
+| Lifecycle scripts | **6** |
+| Hook regression tests | **13** |
+| Lazy-load references | **72** |
+| Eager-loaded violations | **0** |
+
+---
+
+## [5.0.0] — 2026-04-02 — "OpenClaw Integration"
+
+### Added
+
+**10 OpenClaw primitives** — orchestration and safety hooks:
+
+| Primitive | Hook event | Behavior |
+|---|---|---|
+| `tool-loop-detection` | PostToolUse/all | SHA-256 fingerprint window (30 calls). Warning at 10, circuit breaker at 30. |
+| `context-engine` | PreToolUse/Agent + Stop | Token budget estimation. Writes `context-budget.json`. Blocks at 80%. |
+| `mutation-guard` | PreToolUse/Write\|Edit\|Bash | Content-hash dedup. Skips exact duplicate writes silently. |
+| `memory-decay` | SessionStart | Exponential decay (λ=0.023). Stale at 30 days, archived at 60. |
+| `tool-policy-guard` | PreToolUse/Write\|Edit | Enforces `tool_profile: minimal/coding/full`. Fail-open if no profile. |
+| `provider-rotation` | PreToolUse/Agent | Cooldown 5/15/60 min. Failover: opus → sonnet → haiku. |
+| `transcript-policy` | SubagentStart | Model-tier directive: haiku → concise, opus → deep-analysis. |
+| **Yield Pattern** | SDD skill v3.0 | Parallel wave execution via multiple `Agent()` calls per response. |
+| **Steer Pattern** | loop-operator | Drift guidance via `SendMessage` before kill+restart. Max 2 attempts. |
+| **TaskFlow** | session.json | Optimistic locking via `revision`. Lifecycle: idle→execute→wait→resume→finish. |
+
+**Wave Scheduler** — `scripts/wave-scheduler.js`: topological sort (Kahn's algorithm) for task dependency graphs. Outputs parallel execution waves from `tasks.md`.
+
+**Tool policy profiles** added to all 8 agents (minimal / coding / full).
+
+### Changed
+
+- `subagent-driven-development.md` → v3.0: Phase 1 runs `wave-scheduler.js --json`; Phase 2 documents `provider-rotation --mark-failure` on spawn failure.
+- `loop-operator.md` adds Steer Pattern to escalation matrix. Drift → STEER before KILL+RESTART.
+- Hook count: 17 → **28** (7 OpenClaw + provider-rotation + transcript-policy registered).
 
 ### Removed
 
 - `hooks/context-tracker.py` → replaced by `context-engine.py`
 - `hooks/ralph-check.js` → replaced by `tool-loop-detection.py`
-- `hooks/checkpoint-writer.py` → was dead code (never in settings.json)
+- `hooks/checkpoint-writer.py` → was dead code (never registered)
 - `scripts/context-budget.js` → replaced by `context-engine.py`
-- `skills/workflow-utils/strategic-compact.md` → absorbed by context-engine
-- `skills/orchestration/state-sync.md` (skill docs only) → replaced by taskflow.md
-
-### Ecosystem Stats — v5.0.0
-
-| Category | Count |
-|----------|-------|
-| Expert agents | **8** |
-| Skills (total active) | **25+** |
-| Commands | **12** |
-| Hooks | **28** (+11 vs v5.1.1) |
-| OpenClaw primitives | **10** |
-| Rules | **5** |
+- `skills/workflow-utils/strategic-compact.md` → absorbed by `context-engine`
+- `skills/orchestration/state-sync.md` (skill docs) → replaced by `taskflow.md`
 
 ---
 
@@ -64,110 +115,38 @@ description: "All notable changes to Agent007. Format: Keep a Changelog."
 
 ### Added
 
-**GAP-007: Pre-commit quality hook** — `hooks/pre-commit-guard.py` (PreToolUse/Bash) intercepts `git commit` before execution:
-- Blocks staged `.env` files
-- Blocks hardcoded secrets patterns (`API_KEY=`, `SECRET=`, `PASSWORD=`, `TOKEN=` with literal values)
-- Blocks `debug` statements (e.g. the JS `debugger` keyword)
-- Warns on `console.log/debug/warn`
+**Pre-commit quality hook** — `hooks/pre-commit-guard.py` (PreToolUse/Bash) intercepts `git commit`:
+- Blocks staged `.env` files and hardcoded secrets (`API_KEY=`, `SECRET=`, `PASSWORD=`, `TOKEN=`)
+- Blocks `debugger` statements; warns on `console.log`
 - Validates Agent007 pipe-delimited commit message format
 
-Paired with `hooks/block-no-verify.py` which blocks all `git commit --no-verify` calls. Both registered in `settings.json` PreToolUse/Bash chain.
+Paired with `block-no-verify.py` blocking all `git commit --no-verify` calls.
 
----
+**91 new integration tests** across 5 suites covering pre-commit guard, hook-chain, state-sync, context-budget, instinct-engine, and wave-scheduler.
 
-**GAP-009: 91 new integration tests** — 5 new test suites:
-
-| Suite | Tests | Coverage |
-|-------|-------|----------|
-| `test_pre_commit_guard.py` | 22 | pre-commit guard + block-no-verify |
-| `test_hook_chain_integration.py` | 13 | SessionStart chain: welcome → memory-check order |
-| `test_state_sync_integration.py` | 14 | state-sync.py 3-target write contract |
-| `test_context_budget_integration.py` | 14 | context-budget.js --tick/--check/--reset |
-| `test_instinct_engine_integration.py` | 17 | instinct-engine.js status/compile/decay/export |
-| `test_wave_scheduler_integration.js` | 13 | computeWaves() including circular dep detection |
-
----
-
-**GAP-011: `code-reviewer` agent** — new sonnet-model agent:
-- Tool restrictions: Read, Grep, Glob, Bash (read-only)
+**`code-reviewer` agent** — sonnet-model, read-only:
 - CRITICAL/HIGH/MEDIUM/LOW severity taxonomy
-- 80% confidence filter (issues below threshold silently dropped)
+- 80% confidence filter (issues below threshold dropped)
 - Consolidation of similar findings
-- AI cost-awareness check (SKIP_REVIEW for trivial changesets)
-- Added to routing table: `review` → code-reviewer
-- Pipeline: medium+ risk tasks now include code-reviewer gate after verify, before branch-finish
+- AI cost-awareness check (`SKIP_REVIEW` for trivial changesets)
 
----
+**Tool restrictions per agent** (principle of least privilege) — `tools:` YAML frontmatter on all 8 agents.
 
-**GAP-001: Tool restrictions per agent (principle of least privilege)**
-
-`tools:` YAML frontmatter added to all 8 agents:
-
-| Agents | Tools |
-|--------|-------|
-| backend-db-expert, frontend-ux-expert, product-expert | Read, Grep, Glob |
-| platform-expert, loop-operator | + Bash |
-| security-expert, refactor-cleaner | + Write, Edit |
-| code-reviewer | Read, Grep, Glob, Bash |
-
----
-
-**GAP-002: `loop-operator` agent** — dedicated autonomous loop controller (sonnet, color: orange):
-- Pre-start checklist: quality gates, isolated branch, rollback path
-- Checkpoint tracking per iteration
-- Stall detection: same error × 3 consecutive iterations
-- Cost drift monitoring: pause at 2× baseline
+**`loop-operator` agent** — autonomous loop controller:
+- Pre-start checklist; checkpoint tracking per iteration
+- Stall detection (same error × 3); cost drift monitoring (2× baseline)
 - Structured escalation with A/B/C recovery options
 
----
+**`/orchestrate` command** — 5 named workflow types with `HANDOFF.md` protocol:
+- `feature` — brainstorm → plan → SDD → code-reviewer → security → branch-finish
+- `bugfix` — systematic-debugging → plan → generate → code-reviewer → verify
+- `refactor` — sop-reverse → plan → SDD → code-reviewer → verify
+- `security` — security-expert → code-reviewer → fix → re-verify
+- `cleanup` — refactor-cleaner → verify
 
-**GAP-005: `/orchestrate` command** — 5 named workflow types with HANDOFF protocol:
-- `feature`: brainstorm → plan → SDD → code-reviewer → security → branch-finish
-- `bugfix`: systematic-debugging → plan → generate → code-reviewer → verify
-- `refactor`: sop-reverse → plan → SDD → code-reviewer → verify
-- `security`: security-expert → code-reviewer → fix → re-verify
-- `cleanup`: refactor-cleaner → verify
-- HANDOFF documents at `.sdlc/handoffs/<workflow-id>/`
-- Final Orchestration Report with SHIP/NEEDS WORK/BLOCKED verdict
+**3 new rule files** — `git-workflow.md`, `patterns.md`, `coding-style.md`.
 
----
-
-**GAP-003: 3 new rule files**:
-- `rules/git-workflow.md` — pipe-delimited commit format, branch naming, merge strategy, PR template
-- `rules/patterns.md` — DI, Repository pattern, DTOs, guard clauses, composition, event-driven
-- `rules/coding-style.md` — named exports, explicit return types, no magic numbers, 200-line/20-line limits
-
----
-
-**GAP-006: `refactor-cleaner` agent** — specialist in safe dead code removal:
-- Runs `knip`, `depcheck`, `ts-prune` (gracefully degrades)
-- Three-tier risk: SAFE (unused imports/vars), CAREFUL (unused exports), RISKY (unused files/modules)
-- Batch removal: SAFE → CAREFUL → RISKY with test verification + atomic commit after each
-- RISKY items require explicit user approval
-
----
-
-### Changed
-
-- **CLAUDE.md** — header updated to `8 expert agents`; routing adds `review` and `cleanup` routes; `ralph` route through `loop-operator`
-- **agents/INDEX.md** — 3 new agents added
-- **settings.json** — `block-no-verify.py` and `pre-commit-guard.py` added to PreToolUse/Bash chain
-
----
-
-### Ecosystem Stats — v5.1.1
-
-| Category | Count |
-|----------|-------|
-| Expert agents | **8** (+3: code-reviewer, loop-operator, refactor-cleaner) |
-| Skills (invokable) | **19** |
-| Skills (auto-injected) | **6** |
-| Skills (total active) | **25** |
-| Commands | **12** (+1: /orchestrate) |
-| Hooks | **17** (+2: pre-commit-guard, block-no-verify) |
-| Rules | **7** (+3: git-workflow, patterns, coding-style) |
-| Scripts | **7** |
-| Tests | **100+** (+91 new integration tests) |
+**`refactor-cleaner` agent** — runs `knip`, `depcheck`, `ts-prune`. Three-tier risk: SAFE / CAREFUL / RISKY. Batch removal with test verification + atomic commit per batch.
 
 ---
 
@@ -175,20 +154,14 @@ Paired with `hooks/block-no-verify.py` which blocks all `git commit --no-verify`
 
 ### Added
 
-- **Fresh subagents per task** — each task spawns an isolated subagent with a clean context window; eliminates cross-task context bleed
-- **Wave scheduler** — complex tasks grouped into dependency waves; waves execute in parallel via the Agent tool, reducing total wall-clock time
-- **Context budget auto-tracking** — `context-window-guard.py` reads actual token usage; emits `⚠️ context budget` warning at 80%, blocks generation at 95%
-- **RTK (Resume Token Key) integration** — `agent007-init.js` reads `.sdlc/state/session.md` on every SessionStart; active task triggers resume banner automatically
-- **Continuous learning / Instinct system** — `/instinct-status` and `/evolve` allow observed patterns to be promoted to permanent skills
-- **Discuss-lock phase** — `plan.md` enforces DECISIONS.md gate before execution; cannot bypass without `--force`
-- **Security scanning** — `/security-scan` backed by `scripts/security-scan.js`; Grade A (0 critical, 0 warnings) achieved
+- **Fresh subagents per task** — each task spawns an isolated subagent with a clean context window
+- **Wave scheduler** — complex tasks grouped into dependency waves; waves execute in parallel via the Agent tool
+- **Context budget auto-tracking** — `context-window-guard.py` reads actual token usage; warns at 80%, blocks at 95%
+- **RTK integration** — `agent007-init.js` reads `.sdlc/state/session.md` on every SessionStart
+- **Continuous learning / Instinct system** — `/instinct-status` and `/evolve` promote observed patterns to permanent skills
+- **Discuss-lock phase** — `plan.md` enforces `DECISIONS.md` gate before execution
+- **Security scanning** — `/security-scan` backed by `scripts/security-scan.js`
 - **Config protection** — `hooks/config-guard.py` blocks writes to linter/TypeScript configs during code generation
-
-### Changed
-
-- Pipeline skill aliases removed (4 files) — all callers use canonical names: `Skill('brainstorming')`, `Skill('finishing-a-development-branch')`, `Skill('subagent-driven-development')`, `Skill('using-git-worktrees')`
-- Internal command redirects cleaned (8 stubs removed from `commands/`)
-- Skill counts corrected: `25 active skills` (19 invokable + 6 auto-injected)
 
 ### Removed
 
@@ -196,22 +169,11 @@ Paired with `hooks/block-no-verify.py` which blocks all `git commit --no-verify`
 - 8 internal command redirects
 - 5 dead scripts (devlog.js, ecosystem-health.js, validate-frontmatter.js, validate-skills.sh, analyze-usage.js)
 - 3 legacy provider files (cached-anthropic-client.js, model-provider.interface.js, provider-registry.js)
-- 2 stale metrics files (token-tracker.js replaced by context-window-guard.py)
-- 1 stale prompt file
+- 2 stale metrics files (token-tracker.js replaced by `context-window-guard.py`)
 - 1 replaced hook (format-on-save.sh superseded by Python port)
-
-### Ecosystem Stats — v5.1.0
-
-| Category | Count |
-|----------|-------|
-| Expert agents | 5 |
-| Skills (total active) | 25 |
-| Commands | 11 |
-| Hooks | 15 |
-| Scripts | 7 |
 
 ---
 
 ## [5.0.0] — 2026-03-18
 
-Initial v5 release — full restructure into `pipeline/`, `core/`, `orchestration/`, `domain/`, `workflow-utils/` directories. Introduced XML-structured agent prompts, `.sdlc/` context layer, and canonical `Skill()` invocation pattern.
+Initial v5 release — full restructure into `pipeline/`, `core/`, `orchestration/`, `domain/`, `workflow-utils/`. Introduced XML-structured agent prompts, `.sdlc/` context layer, canonical `Skill()` invocation pattern.
